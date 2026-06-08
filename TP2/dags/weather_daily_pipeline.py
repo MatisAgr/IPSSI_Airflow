@@ -22,7 +22,7 @@ OUTPUT_CSV = Path("/opt/airflow/logs/weather_output.csv")  # mappé sur ./logs/ 
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["tp2", "weather"],
-    default_args={"owner": "matis_anger", "retries": 3, "retry_delay": 300},
+    default_args={"owner": "matis", "retries": 3, "retry_delay": 300},
 )
 def weather_daily_pipeline():
 
