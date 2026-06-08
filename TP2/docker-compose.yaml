@@ -2,7 +2,7 @@ x-airflow-common: &airflow-common
   image: apache/airflow:2.10.5
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor                  # exécute les tâches en sous-processus locaux (pas de Celery)
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow  # BDD des métadonnées (runs, états, logs)
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}  # BDD des métadonnées (runs, états, logs)
     AIRFLOW__CORE__FERNET_KEY: ''                           # clé de chiffrement des mots de passe (vide = pas de chiffrement en dev)
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'     # nouveaux DAGs actifs d'emblée
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'                   # pas de DAGs d'exemple Airflow
@@ -22,9 +22,9 @@ services:
   postgres: # base de métadonnées d'Airflow
     image: postgres:13
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data  # persiste la BDD entre les redémarrages
     healthcheck:
@@ -42,7 +42,7 @@ services:
       - |
         airflow db migrate
         airflow users create \
-          --username airflow --password airflow \
+          --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} \
           --firstname Air --lastname Flow \
           --role Admin --email admin@example.com || true
         chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/config  # fix permissions pour le scheduler
