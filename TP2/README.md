@@ -1,6 +1,12 @@
 # TP2 — Créer un premier DAG Airflow
 
 Environnement Docker Airflow + un DAG simple à 3 tâches : `weather_daily_pipeline`.
+> Données simulées (pas d'appel API réel, pas de BDD réelle)
+
+```mermaid
+flowchart LR
+    fetch_weather["fetch_weather\nGénère des données aléatoires"] --> transform_weather["transform_weather\nValidation + °C → °F"] --> store_weather["store_weather\nLog simulant une insertion"]
+```
 
 ## Arborescence
 
