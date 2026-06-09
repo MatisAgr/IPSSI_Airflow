@@ -32,7 +32,7 @@ OUTPUT_CSV = Path(os.environ.get("OUTPUT_CSV", "/opt/airflow/logs/weather_openme
 
 @dag(
     dag_id="weather_daily_pipeline",
-    description="TP2A — Ingestion météo Open-Meteo (API réelle) - fetch / parse / validate / store",
+    description="TP2A Ingestion météo Open-Meteo (API réelle) - fetch / parse / validate / store",
     schedule="@daily",
     start_date=datetime(2026, 1, 1),
     catchup=False,
@@ -47,26 +47,23 @@ def weather_daily_pipeline():
         log.info("Pipeline démarré — run_id=%s  logical_date=%s", context["run_id"], context["logical_date"])
 
     @task
-    def fetch_weather() -> list[dict]:
-        """Appelle l'API Open-Meteo pour chaque ville et retourne les réponses JSON brutes."""
-        raw_responses = []
-        for city in CITIES:
-            resp = requests.get(
-                OPEN_METEO_URL,
-                params={
-                    "latitude":  city["lat"],
-                    "longitude": city["lon"],
-                    "current":   "temperature_2m,relative_humidity_2m,wind_speed_10m",
-                    "timezone":  "auto",
-                },
-                timeout=10,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            data["_city"] = city["name"]  # l'API ne retourne pas le nom, on l'injecte
-            raw_responses.append(data)
-            log.info("fetch_weather : %s -> HTTP 200", city["name"])
-        return raw_responses
+    def fetch_city(city: dict) -> dict:
+        """Appelle l'API Open-Meteo pour une ville."""
+        resp = requests.get(
+            OPEN_METEO_URL,
+            params={
+                "latitude":  city["lat"],
+                "longitude": city["lon"],
+                "current":   "temperature_2m,relative_humidity_2m,wind_speed_10m",
+                "timezone":  "auto",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        data["_city"] = city["name"]  # l'API ne retourne pas le nom, on l'injecte
+        log.info("fetch_city[%s] -> HTTP 200", city["name"])
+        return data
 
     @task
     def parse_weather(raw_responses: list[dict]) -> list[dict]:
@@ -128,12 +125,14 @@ def weather_daily_pipeline():
 
     # --- Dépendances ----------------------------------------------------------
     init = init_log()
-    raw = fetch_weather()
-    init >> raw
 
-    parsed   = parse_weather(raw)
+    # expand crée une instance fetch_city[0/1/2] par ville, exécutées en parallèle
+    raw = fetch_city.expand(city=CITIES)
+    init >> raw  # toutes les instances attendent init_log
+
+    parsed    = parse_weather(raw)       # reçoit la liste des 3 résultats via XCom
     validated = validate_weather(parsed)
-    stored   = store_weather(validated)
+    stored    = store_weather(validated)
 
     alert = send_alert()
     init >> alert
