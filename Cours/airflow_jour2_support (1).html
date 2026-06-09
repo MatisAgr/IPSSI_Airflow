@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airflow — Jour 2</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2a;
+      --panel: #10243b;
+      --panel-2: #132b45;
+      --text: #f5f7fb;
+      --muted: #b8c7db;
+      --blue: #4da3ff;
+      --cyan: #62d0ff;
+      --green: #5ee4a8;
+      --orange: #ffb55e;
+      --red: #ff7b7b;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { counter-reset: slide; }
+    .deck { width: 100%; }
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      padding: 64px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(98,208,255,.10), transparent 30%),
+        radial-gradient(circle at top left, rgba(77,163,255,.10), transparent 28%),
+        linear-gradient(180deg, #091321 0%, #07111f 100%);
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .slide::after {
+      counter-increment: slide;
+      content: counter(slide, decimal-leading-zero);
+      position: absolute;
+      right: 28px;
+      bottom: 20px;
+      font-size: 14px;
+      letter-spacing: .18em;
+      color: rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p, ul { margin: 0; }
+    h1 {
+      font-size: 58px;
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      max-width: 980px;
+    }
+    h2 {
+      font-size: 42px;
+      line-height: 1.08;
+      letter-spacing: -.025em;
+      max-width: 1080px;
+    }
+    h3 {
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .lead {
+      font-size: 25px;
+      line-height: 1.38;
+      color: var(--muted);
+      max-width: 1040px;
+    }
+    .text {
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .small {
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bullet-list li {
+      position: relative;
+      padding-left: 22px;
+      font-size: 21px;
+      line-height: 1.42;
+      color: var(--muted);
+    }
+    .bullet-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 0 4px rgba(98,208,255,.12);
+    }
+    .good-list li::before { background: var(--green); box-shadow: 0 0 0 4px rgba(94,228,168,.12); }
+    .danger-list li::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255,123,123,.12); }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 28px;
+      align-items: center;
+      flex: 1;
+    }
+    .kicker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .accent { color: var(--cyan); }
+    .quote {
+      padding: 22px 24px;
+      border-left: 4px solid var(--cyan);
+      background: rgba(98,208,255,.08);
+      border-radius: 16px;
+      font-size: 24px;
+      line-height: 1.38;
+      color: var(--text);
+      max-width: 1080px;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .metric {
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+    }
+    .metric .value {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .metric .label {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
+    .timeline .step {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 146px;
+    }
+    .step .num {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: .14em;
+      margin-bottom: 12px;
+    }
+    .step h3 { font-size: 22px; margin-bottom: 10px; }
+    .diagram {
+      padding: 24px;
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .tp-banner {
+      display: inline-flex;
+      align-self: flex-start;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(94,228,168,.12);
+      border: 1px solid rgba(94,228,168,.35);
+      color: var(--green);
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: 15px;
+    }
+    .tp-layout {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .checklist li {
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1.4;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .checklist li .n {
+      flex: 0 0 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(98,208,255,.15);
+      border: 1px solid rgba(98,208,255,.35);
+      color: var(--cyan);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      margin-top: 2px;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95em;
+      color: var(--text);
+    }
+    @media print {
+      @page { size: A4 landscape; margin: 0; }
+      html, body { background: #07111f; }
+      .slide {
+        min-height: 100vh;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+
+    <section class="slide">
+      <div class="eyebrow">Master 2 — Apache Airflow</div>
+      <div class="hero">
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <h1>Jour 2 — Théorie de la conception d’un <span class="accent">pipeline orchestré</span></h1>
+          <p class="lead">Comprendre comment construire un workflow utile : gérer le temps dans Airflow, lire une API comme une vraie source de données, structurer la transformation et préparer un DAG maintenable.</p>
+          <div class="kicker-row">
+            <span class="pill">Scheduling</span>
+            <span class="pill">API</span>
+            <span class="pill">JSON</span>
+            <span class="pill">ETL</span>
+            <span class="pill">Paramétrage</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Objectif de la journée</div>
+      <h2>Ce qui doit être acquis à la fin du jour 2</h2>
+      <div class="metric-row">
+        <div class="metric"><div class="value">01</div><div class="label">Comprendre la logique du scheduling dans Airflow</div></div>
+        <div class="metric"><div class="value">02</div><div class="label">Lire une API comme une source exploitable dans un pipeline</div></div>
+        <div class="metric"><div class="value">03</div><div class="label">Passer du brut vers une structure de travail et une table cible</div></div>
+        <div class="metric"><div class="value">04</div><div class="label">Préparer un DAG paramétrable, propre et réutilisable</div></div>
+      </div>
+      <div class="quote">Un pipeline utile n’est pas seulement un pipeline qui tourne. C’est un pipeline qui comprend le temps, structure la donnée, trace ce qu’il fait et reste maintenable.</div>
+      <div class="timeline">
+        <div class="step"><div class="num">REPRISE</div><h3>Relire le DAG</h3><p class="small">Correction du premier DAG et transition vers une logique de pipeline réel.</p></div>
+        <div class="step"><div class="num">MATIN</div><h3>Comprendre le temps</h3><p class="small">Schedule, cron, logical date, data interval, catchup.</p></div>
+        <div class="step"><div class="num">MATIN</div><h3>Lire l’API</h3><p class="small">JSON, schéma implicite, champs utiles, limites des données source.</p></div>
+        <div class="step"><div class="num">APRÈS-MIDI</div><h3>Structurer</h3><p class="small">Extraction, transformation, chargement, tables d’ingestion et tables métier.</p></div>
+        <div class="step"><div class="num">APRÈS-MIDI</div><h3>Paramétrer</h3><p class="small">Variables, connexions, nommage, séparation code / configuration.</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Scheduling</div>
+      <h2>Exécution manuelle, exécution planifiée, schedule, cron et presets</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Exécution manuelle</h3>
+          <ul class="bullet-list good-list">
+            <li>tester ;</li>
+            <li>rejouer ;</li>
+            <li>vérifier un comportement ;</li>
+            <li>lancer un flux à la demande.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Exécution planifiée</h3>
+          <ul class="bullet-list good-list">
+            <li>tous les jours ;</li>
+            <li>toutes les heures ;</li>
+            <li>tous les lundis ;</li>
+            <li>tous les premiers jours du mois.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Le <span class="mono">schedule</span></h3>
+          <p class="small">Définit la logique de planification du DAG : presets, cron, durées, timetables.</p>
+        </div>
+        <div class="card">
+          <h3>Cron</h3>
+          <p class="small"><span class="mono">0 6 * * *</span><br><span class="mono">0 * * * *</span><br><span class="mono">0 0 * * 1</span></p>
+          <p class="small">Cron décrit quand on déclenche, pas forcément la période de données traitée.</p>
+        </div>
+        <div class="card">
+          <h3>Presets utiles</h3>
+          <p class="small"><span class="mono">@hourly</span><br><span class="mono">@daily</span><br><span class="mono">@weekly</span><br><span class="mono">@monthly</span></p>
+        </div>
+      </div>
+      <div class="quote">Ce n’est pas parce qu’un DAG est quotidien que sa logique temporelle est triviale.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Temps logique</div>
+      <h2>Data interval, date logique, start_date et catchup</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Data interval</h3>
+          <ul class="bullet-list">
+            <li>un DAG run représente une période de données ;</li>
+            <li>il ne représente pas seulement un instant d’exécution ;</li>
+            <li>un run quotidien peut couvrir une fenêtre complète de données.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Date logique</h3>
+          <p class="text">La date affichée ne doit pas être lue comme “le moment où ça tourne”, mais comme un repère logique lié à la période de données.</p>
+        </div>
+        <div class="card">
+          <h3>Pourquoi la confusion est fréquente</h3>
+          <ul class="bullet-list danger-list">
+            <li>confusion entre exécution réelle et date logique ;</li>
+            <li>lecture du calendrier comme un simple agenda ;</li>
+            <li>oubli qu’un run quotidien démarre souvent après la fin de la période qu’il couvre.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Start date et catchup</h3>
+          <ul class="bullet-list">
+            <li><span class="mono">start_date</span> ancre le premier intervalle de données ;</li>
+            <li><span class="mono">catchup=True</span> rattrape les intervalles passés ;</li>
+            <li><span class="mono">catchup=False</span> se concentre généralement sur le plus récent.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 920 220" width="100%" aria-label="Frise de logique temporelle">
+          <line x1="60" y1="120" x2="860" y2="120" stroke="rgba(255,255,255,.25)" stroke-width="4"/>
+          <rect x="140" y="84" rx="16" ry="16" width="210" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="380" y="84" rx="16" ry="16" width="210" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="620" y="84" rx="16" ry="16" width="180" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <g fill="#f5f7fb" font-size="20" font-family="Inter, sans-serif" font-weight="700">
+            <text x="183" y="126">période J-1</text>
+            <text x="405" y="126">run planifié après</text>
+            <text x="646" y="126">traitement</text>
+          </g>
+          <text x="98" y="52" fill="#62d0ff" font-size="18" font-family="Inter, sans-serif">Le DAG lancé aujourd’hui traite souvent la période précédente</text>
+        </svg>
+      </div>
+      <div class="quote">Airflow raisonne en logique de période traitée, pas seulement en logique “je lance quelque chose maintenant”.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Point difficile</div>
+      <h2>Exécuter tous les jours n’est pas la même chose que traiter la période du jour</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Logique calendrier</h3>
+          <ul class="bullet-list">
+            <li>quand le DAG est déclenché ;</li>
+            <li>à quelle fréquence il part ;</li>
+            <li>quelle expression cron ou quel preset est utilisé.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Logique data</h3>
+          <ul class="bullet-list">
+            <li>quelle période ce run représente ;</li>
+            <li>quelles données doivent être disponibles ;</li>
+            <li>que faire des périodes passées ;</li>
+            <li>comment rejouer proprement.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Cron répond à “quand lancer ?”. Airflow doit aussi permettre de répondre à “quelle période de données ce run représente-t-il ?”.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">API et données externes</div>
+      <h2>Une API n’est pas une table analytique : c’est une source à interpréter</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ce qu’est une API dans un pipeline</h3>
+          <p class="text">Une API est une interface par laquelle un système expose des données ou des services à un autre système. Dans un pipeline data, elle joue souvent le rôle de source externe.</p>
+          <ul class="bullet-list good-list">
+            <li>météo ;</li>
+            <li>taux de change ;</li>
+            <li>catalogue produit ;</li>
+            <li>données logistiques ;</li>
+            <li>données publiques.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Donnée source vs donnée exploitable</h3>
+          <ul class="bullet-list">
+            <li>la donnée source est fournie selon la logique du système externe ;</li>
+            <li>la donnée exploitable est sélectionnée, nettoyée, convertie et structurée pour un usage métier.</li>
+          </ul>
+          <div class="quote" style="font-size:21px;">Une API ne fournit pas directement une table analytique. Elle fournit une matière première.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Lire un JSON</div>
+      <h2>Schéma implicite, champs utiles et difficultés fréquentes</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Ce que l’on trouve dans un JSON</h3>
+          <ul class="bullet-list">
+            <li>clés simples ;</li>
+            <li>objets imbriqués ;</li>
+            <li>tableaux ;</li>
+            <li>champs présents ou absents selon les cas.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Questions à se poser</h3>
+          <ul class="bullet-list">
+            <li>quelles informations sont réellement utiles ?</li>
+            <li>quelles clés sont stables ?</li>
+            <li>quelles données sont techniques ?</li>
+            <li>quelles données sont métier ?</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Schéma implicite</h3>
+          <ul class="bullet-list">
+            <li>noms de champs ;</li>
+            <li>types attendus ;</li>
+            <li>cardinalités ;</li>
+            <li>présence ou absence de certaines propriétés.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Problèmes fréquents</h3>
+          <ul class="bullet-list danger-list">
+            <li>valeurs manquantes ;</li>
+            <li>structures imbriquées ;</li>
+            <li>horodatages et timezones ;</li>
+            <li>champs inutiles ;</li>
+            <li>évolution de la réponse API.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Sélection des champs</h3>
+          <p class="text">Dans un pipeline, on ne sélectionne pas tout par réflexe. On sélectionne ce qui a une utilité pour le besoin métier, la future table cible ou la traçabilité.</p>
+        </div>
+      </div>
+      <div class="quote">La lecture d’une API n’est pas un acte purement technique. C’est un travail d’interprétation de la donnée source.</div>
+    </section>
+
+    <section class="slide">
+      <div class="tp-banner">TP 2A — Fin de matinée</div>
+      <h2>Préparer une ingestion API météo</h2>
+      <div class="tp-layout">
+        <div class="card">
+          <h3>Sujet</h3>
+          <p class="text">Récupérer des données Open-Meteo pour plusieurs villes.</p>
+          <h3 style="margin-top:8px;">Travail demandé</h3>
+          <ul class="checklist">
+            <li><span class="n">1</span><span>Appeler l’API Open-Meteo pour au moins 3 villes.</span></li>
+            <li><span class="n">2</span><span>Récupérer la réponse JSON.</span></li>
+            <li><span class="n">3</span><span>Identifier les champs utiles pour le besoin métier.</span></li>
+            <li><span class="n">4</span><span>Transformer les données en structure exploitable.</span></li>
+            <li><span class="n">5</span><span>Séparer la logique de récupération et la logique de transformation.</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Consignes</h3>
+          <ul class="bullet-list">
+            <li>ne pas tout garder sans justification ;</li>
+            <li>bien distinguer ce qui vient directement de l’API et ce qui est préparé pour le pipeline ;</li>
+            <li>garder un DAG lisible ;</li>
+            <li>utiliser des noms explicites ;</li>
+            <li>penser à la cohérence de la future table cible.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Livrables attendus</h3>
+          <ul class="bullet-list good-list">
+            <li>DAG ;</li>
+            <li>aperçu des données préparées ;</li>
+            <li>courte explication des champs retenus.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Du brut vers le structuré</div>
+      <h2>Extraction, transformation, chargement</h2>
+      <div class="diagram">
+        <svg viewBox="0 0 980 220" width="100%" aria-label="Chaîne ETL">
+          <rect x="40" y="74" rx="20" ry="20" width="220" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="380" y="74" rx="20" ry="20" width="220" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="720" y="74" rx="20" ry="20" width="220" height="72" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <path d="M260 110 H380" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M600 110 H720" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+          <g fill="#f5f7fb" font-size="24" font-family="Inter, sans-serif" font-weight="700">
+            <text x="92" y="118">Extraction</text>
+            <text x="420" y="118">Transformation</text>
+            <text x="790" y="118">Chargement</text>
+          </g>
+        </svg>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Extraction</h3>
+          <ul class="bullet-list">
+            <li>API ;</li>
+            <li>fichier ;</li>
+            <li>base source ;</li>
+            <li>service externe.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Transformation</h3>
+          <ul class="bullet-list">
+            <li>sélection ;</li>
+            <li>conversion ;</li>
+            <li>nettoyage ;</li>
+            <li>restructuration ;</li>
+            <li>harmonisation.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Chargement</h3>
+          <ul class="bullet-list">
+            <li>table de staging ;</li>
+            <li>table métier ;</li>
+            <li>table analytique ;</li>
+            <li>table de suivi.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Charger ne veut pas dire “copier-coller la source dans la base”.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Couches de données</div>
+      <h2>Brut, intermédiaire, table cible, table d’ingestion et traçabilité</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Brut</h3>
+          <ul class="bullet-list">
+            <li>proche de la source ;</li>
+            <li>parfois désordonné ;</li>
+            <li>utile pour audit, debug et reprise.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Intermédiaire</h3>
+          <ul class="bullet-list">
+            <li>version de travail ;</li>
+            <li>partiellement nettoyée ;</li>
+            <li>encore technique dans certains cas ;</li>
+            <li>utile pour séparer les étapes.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Table cible</h3>
+          <ul class="bullet-list good-list">
+            <li>stable ;</li>
+            <li>lisible ;</li>
+            <li>cohérente avec le besoin ;</li>
+            <li>interrogeable proprement.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Table d’ingestion</h3>
+          <ul class="bullet-list">
+            <li>source ;</li>
+            <li>date de début et date de fin ;</li>
+            <li>statut ;</li>
+            <li>nombre de lignes reçues ;</li>
+            <li>nombre de lignes insérées ;</li>
+            <li>erreurs éventuelles ;</li>
+            <li>run concerné.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Table métier et traçabilité</h3>
+          <ul class="bullet-list">
+            <li>donnée utile pour l’usage final ;</li>
+            <li>structure lisible et réutilisable ;</li>
+            <li>capacité à répondre à : quand, avec quelle source, combien, où cela a bloqué, quel run a produit la donnée.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Gouvernance minimale</div>
+      <h2>Pourquoi éviter le hardcode et séparer code, configuration et paramètres</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Le hardcode pose problème</h3>
+          <ul class="bullet-list danger-list">
+            <li>ville écrite en dur ;</li>
+            <li>URL écrite en dur ;</li>
+            <li>seuil écrit en dur ;</li>
+            <li>credentials dans le code ;</li>
+            <li>nom de table figé partout.</li>
+          </ul>
+          <p class="small">Conséquences : faible réutilisabilité, maintenance pénible, duplication, erreurs lors des changements, sécurité médiocre.</p>
+        </div>
+        <div class="card">
+          <h3>Deux familles de paramètres</h3>
+          <ul class="bullet-list good-list">
+            <li><strong>paramètres métier</strong> : villes, fréquence métier, seuil d’alerte, mesures à récupérer ;</li>
+            <li><strong>paramètres techniques</strong> : connexion base, endpoint API, timeout, retries, schéma, bucket.</li>
+          </ul>
+          <div class="quote" style="font-size:21px;">Le code décrit la logique. La configuration adapte cette logique à un contexte.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Réutilisabilité</div>
+      <h2>Variables, connexions, documentation minimale et nommage propre</h2>
+      <div class="grid-4">
+        <div class="card">
+          <h3>Variables</h3>
+          <p class="small">Pratiques pour stocker certaines valeurs de configuration, mais à utiliser avec discernement.</p>
+        </div>
+        <div class="card">
+          <h3>Connexions</h3>
+          <p class="small">Centralisent les accès à PostgreSQL, API, S3 et autres systèmes externes.</p>
+        </div>
+        <div class="card">
+          <h3>Documentation minimale</h3>
+          <p class="small">Rôle du DAG, source, cible, fréquence, logique de traitement, paramètres importants.</p>
+        </div>
+        <div class="card">
+          <h3>Nommage</h3>
+          <p class="small">Doit permettre de comprendre le DAG, lire l’UI et diagnostiquer plus vite.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ce qu’un DAG propre doit rester</h3>
+          <ul class="bullet-list good-list">
+            <li>lisible ;</li>
+            <li>propre ;</li>
+            <li>configurable ;</li>
+            <li>réutilisable ;</li>
+            <li>testable dans une certaine mesure.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Conclusion de la séquence</h3>
+          <p class="text">Un pipeline utile n’est pas seulement un pipeline qui marche. C’est un pipeline qu’on peut relire, adapter, relancer, maintenir et faire évoluer sans repartir de zéro.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="tp-banner">TP 2B — Fin d’après-midi</div>
+      <h2>Pipeline complet API → transformation → PostgreSQL</h2>
+      <div class="tp-layout">
+        <div class="card">
+          <h3>Objectif</h3>
+          <p class="text">Construire un premier pipeline orchestré complet à partir d’Open-Meteo, en réutilisant les acquis de la journée : récupération API, transformation, chargement PostgreSQL, traçabilité et paramétrage.</p>
+          <h3 style="margin-top:8px;">Travail demandé</h3>
+          <ul class="checklist">
+            <li><span class="n">1</span><span>Récupérer les données Open-Meteo.</span></li>
+            <li><span class="n">2</span><span>Transformer les données.</span></li>
+            <li><span class="n">3</span><span>Charger PostgreSQL.</span></li>
+            <li><span class="n">4</span><span>Écrire une ligne dans une table de suivi d’ingestion.</span></li>
+            <li><span class="n">5</span><span>Rendre le DAG paramétrable.</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Contraintes</h3>
+          <ul class="bullet-list">
+            <li>DAG lisible ;</li>
+            <li>tâches bien séparées ;</li>
+            <li>noms explicites ;</li>
+            <li>pas de hardcode inutile ;</li>
+            <li>séparation claire entre récupération, transformation et chargement.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Livrables attendus</h3>
+          <ul class="bullet-list good-list">
+            <li>DAG complet ;</li>
+            <li>script SQL ;</li>
+            <li>preuve de chargement.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Synthèse du jour</div>
+      <h2>Ce qu’il faut retenir avant le jour 3</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Scheduling</h3>
+          <ul class="bullet-list">
+            <li>Airflow raisonne en calendrier et en période de données ;</li>
+            <li>la date logique n’est pas simplement l’heure réelle d’exécution ;</li>
+            <li><span class="mono">catchup</span> et <span class="mono">start_date</span> influencent fortement le comportement du DAG.</li>
+          </ul>
+          <h3 style="margin-top:8px;">API</h3>
+          <ul class="bullet-list">
+            <li>une API est une source ;</li>
+            <li>le JSON doit être lu, trié et interprété ;</li>
+            <li>la donnée source n’est pas encore une donnée métier.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Structuration et gouvernance minimale</h3>
+          <ul class="bullet-list good-list">
+            <li>un pipeline passe du brut vers le structuré ;</li>
+            <li>toutes les données ne vont pas directement dans la table cible ;</li>
+            <li>la traçabilité fait partie du pipeline ;</li>
+            <li>il faut éviter le hardcode ;</li>
+            <li>il faut distinguer paramètres métier et techniques ;</li>
+            <li>il faut écrire un DAG propre et lisible.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Le mardi, on apprend à concevoir un pipeline orchestré qui respecte le temps, comprend sa source, structure sa donnée et prépare déjà sa maintenabilité.</div>
+    </section>
+
+  </main>
+</body>
+</html>
