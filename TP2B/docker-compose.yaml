@@ -1,0 +1,110 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.10.5
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor                  # exécute les tâches en sous-processus locaux (pas de Celery)
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}  # BDD des métadonnées Airflow
+    AIRFLOW__CORE__FERNET_KEY: ''                           # clé de chiffrement (vide = pas de chiffrement en dev)
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'     # nouveaux DAGs actifs d'emblée
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'                   # pas de DAGs d'exemple Airflow
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'  # auth HTTP basic sur l'API REST
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'         # expose /health sur le scheduler
+    AIRFLOW_CONN_WEATHER_DB: ${AIRFLOW_CONN_WEATHER_DB}     # connexion Airflow vers la BDD métier (utilisée par PostgresHook)
+    WEATHER_TABLE: ${WEATHER_TABLE}                          # paramètre technique : nom table cible
+    INGESTION_TABLE: ${INGESTION_TABLE}                      # paramètre technique : nom table de suivi
+    OPEN_METEO_URL: ${OPEN_METEO_URL}                        # paramètre technique : endpoint API
+    WEATHER_CITIES: ${WEATHER_CITIES}                        # paramètre métier : villes suivies
+  volumes:
+    - ./dags:/opt/airflow/dags          # DAGs montés dans le conteneur
+    - ./logs:/opt/airflow/logs          # logs des tâches persistés sur l'hôte
+    - ./config:/opt/airflow/config
+    - ./plugins:/opt/airflow/plugins
+    - ./sql:/opt/airflow/sql            # scripts SQL (DDL) accessibles depuis le DAG
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+    weather-db:
+      condition: service_healthy        # attend aussi la BDD métier
+
+services:
+  postgres:                             # BDD de métadonnées d'Airflow (interne)
+    image: postgres:13
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  weather-db:                           # BDD métier : cible du chargement (séparée des métadonnées)
+    image: postgres:13
+    environment:
+      POSTGRES_USER: ${WEATHER_DB_USER}
+      POSTGRES_PASSWORD: ${WEATHER_DB_PASSWORD}
+      POSTGRES_DB: ${WEATHER_DB_NAME}
+    ports:
+      - "5433:5432"                     # exposé sur 5433 pour inspection externe (psql/DBeaver)
+    volumes:
+      - weather-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${WEATHER_DB_USER}"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-init:                         # service one-shot : migration BDD + création admin
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} \
+          --firstname Air --lastname Flow \
+          --role Admin --email admin@example.com || true
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/config
+    user: "0:0"
+
+  airflow-scheduler:                    # planifie et déclenche les tâches
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-webserver:                    # interface web sur http://localhost:8080
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-db-volume:                   # métadonnées Airflow
+  weather-db-volume:                    # données météo métier

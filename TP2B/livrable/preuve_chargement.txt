@@ -1,0 +1,33 @@
+### 1. Conteneurs (docker compose ps)
+NAME                       IMAGE                   COMMAND                  SERVICE             CREATED         STATUS                   PORTS
+tp2b-airflow-scheduler-1   apache/airflow:2.10.5   "/usr/bin/dumb-init …"   airflow-scheduler   4 minutes ago   Up 4 minutes (healthy)   8080/tcp
+tp2b-airflow-webserver-1   apache/airflow:2.10.5   "/usr/bin/dumb-init …"   airflow-webserver   4 minutes ago   Up 4 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+tp2b-postgres-1            postgres:13             "docker-entrypoint.s…"   postgres            5 minutes ago   Up 5 minutes (healthy)   5432/tcp
+tp2b-weather-db-1          postgres:13             "docker-entrypoint.s…"   weather-db          5 minutes ago   Up 5 minutes (healthy)   0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+
+### 2. Connexion Airflow vers la BDD metier
+id    conn_id     conn_type    description    host        schema    login    password      port  is_encrypted    is_extra_encrypted    extra_dejson    get_uri
+      weather_db  postgres                    weather-db  weather   weather  weather       5432  False           False                 {}              postgres://weather:weather@weather-db:5432/weather
+
+### 3. Etat du run manuel
+dag_id                  run_id                                state    execution_date             start_date                        end_date
+weather_daily_pipeline  manual_tp2b_demo                      success  2026-06-09T13:17:26+00:00  2026-06-09T13:17:27.415890+00:00  2026-06-09T13:17:33.689859+00:00
+
+### 4. Table cible : weather_measurements
+  city  |     measured_at     | temp_c | humidity_pct | wind_kmh |                run_id                
+--------+---------------------+--------+--------------+----------+--------------------------------------
+ Berlin | 2026-06-09 15:00:00 |   19.5 |           46 |     19.3 | scheduled__2026-06-08T00:00:00+00:00
+ Berlin | 2026-06-09 15:15:00 |   19.5 |           45 |     19.6 | manual_tp2b_demo
+ Madrid | 2026-06-09 15:00:00 |   30.8 |           24 |      4.6 | scheduled__2026-06-08T00:00:00+00:00
+ Madrid | 2026-06-09 15:15:00 |     31 |           23 |      4.8 | manual_tp2b_demo
+ Paris  | 2026-06-09 15:00:00 |     19 |           40 |     15.6 | scheduled__2026-06-08T00:00:00+00:00
+ Paris  | 2026-06-09 15:15:00 |   19.2 |           39 |     14.3 | manual_tp2b_demo
+(6 rows)
+
+### 5. Table de suivi : ingestion_log
+                run_id                |   source   | status  | rows_received | rows_inserted | error |           logged_at           
+--------------------------------------+------------+---------+---------------+---------------+-------+-------------------------------
+ scheduled__2026-06-08T00:00:00+00:00 | open-meteo | success |             3 |             3 |       | 2026-06-09 13:14:45.681312+00
+ manual_tp2b_demo                     | open-meteo | success |             3 |             3 |       | 2026-06-09 13:17:32.956248+00
+(2 rows)
+
