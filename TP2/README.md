@@ -39,15 +39,14 @@ TP2/
 
 ```bash
 cp .env.example .env                # (une seule fois) créer le .env
-docker compose up airflow-init      # (une seule fois) migration BDD + création admin
 docker compose up -d                # démarre scheduler + webserver
 ```
 
-Interface web : http://localhost:8080 — identifiants `airflow` / `airflow`.
+Interface web : http://localhost:8080 - identifiants `airflow` / `airflow`.
 
 ## Lancer le DAG manuellement
 
-Depuis l'UI : bouton ▶ (*Trigger DAG*) sur `weather_daily_pipeline`.
+Depuis l'UI : bouton Play (*Trigger DAG*) sur `weather_daily_pipeline`.
 
 ## Consulter les logs d'une tâche
 
@@ -57,14 +56,14 @@ Ou sur disque : `logs/dag_id=weather_daily_pipeline/run_id=.../task_id=.../attem
 
 ## Le DAG : rôle de chaque tâche
 
-| Tâche | Rôle |
-|-------|------|
-| `init_log` | Log les métadonnées du run (run_id, date). Point de départ. |
-| `fetch_weather` | Génère des mesures météo simulées pour Paris, Berlin, Madrid. |
-| `validate_weather` | Vérifie que temp_c ∈ [-50, 60] et humidity ∈ [0, 100]. |
-| `transform_weather` | Convertit la température °C → °F. |
-| `store_weather` | Écrit le résultat dans `logs/weather_output.csv`. |
-| `send_alert` | Se déclenche si **une** tâche amont échoue (`trigger_rule=one_failed`), skippée sinon. |
+| Tâche               | Rôle                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `init_log`          | Log les métadonnées du run (run_id, date). Point de départ.                            |
+| `fetch_weather`     | Génère des mesures météo simulées pour Paris, Berlin, Madrid.                          |
+| `validate_weather`  | Vérifie que temp_c ∈ [-50, 60] et humidity ∈ [0, 100].                                 |
+| `transform_weather` | Convertit la température °C → °F.                                                      |
+| `store_weather`     | Écrit le résultat dans `logs/weather_output.csv`.                                      |
+| `send_alert`        | Se déclenche si **une** tâche amont échoue (`trigger_rule=one_failed`), skippée sinon. |
 
 ## Comment ça marche
 
