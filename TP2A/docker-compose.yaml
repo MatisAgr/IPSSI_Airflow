@@ -1,0 +1,84 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.10.5
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor                  # exécute les tâches en sous-processus locaux (pas de Celery)
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}  # BDD des métadonnées (runs, états, logs)
+    AIRFLOW__CORE__FERNET_KEY: ''                           # clé de chiffrement des mots de passe (vide = pas de chiffrement en dev)
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'     # nouveaux DAGs actifs d'emblée
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'                   # pas de DAGs d'exemple Airflow
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'  # active l'auth HTTP basic sur l'API REST
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'         # expose /health sur le scheduler (utilisé par le healthcheck Docker)
+  volumes:
+    - ./dags:/opt/airflow/dags        # dossier local des DAGs monté dans le conteneur
+    - ./logs:/opt/airflow/logs        # logs des tâches persistés sur l'hôte
+    - ./config:/opt/airflow/config
+    - ./plugins:/opt/airflow/plugins
+  user: "${AIRFLOW_UID:-50000}:0"     # uid de l'utilisateur airflow
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy      # attend que Postgres soit prêt avant de démarrer
+
+services:
+  postgres: # base de métadonnées d'Airflow
+    image: postgres:13
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data  # persiste la BDD entre les redémarrages
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-init:                       # service one-shot : migration BDD + création de l'admin
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} \
+          --firstname Air --lastname Flow \
+          --role Admin --email admin@example.com || true
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/config  # fix permissions pour le scheduler
+    user: "0:0"                       # tourne en root pour pouvoir faire le chown
+
+  airflow-scheduler:                  # planifie et déclenche les tâches
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully  # démarre seulement après la fin de l'init
+
+  airflow-webserver:                  # interface web sur http://localhost:8080
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-db-volume:                 # volume nommé : survit aux "docker compose down" (supprimé avec -v)
