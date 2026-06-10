@@ -1,5 +1,4 @@
 """TP2A - Ingestion météo Open-Meteo : fetch (API réelle) → parse → validate → store."""
-# TP2A — version avec appel API réel (Open-Meteo), pas de données simulées
 
 from __future__ import annotations
 

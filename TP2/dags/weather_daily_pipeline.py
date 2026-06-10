@@ -12,7 +12,7 @@ from airflow.decorators import dag, task
 log = logging.getLogger(__name__)
 
 CITIES = ["Paris", "Berlin", "Madrid"]
-OUTPUT_CSV = Path("/opt/airflow/logs/weather_output.csv")  # mappé sur ./logs/ sur l'hôte
+OUTPUT_CSV = Path("/opt/airflow/logs/weather_output.csv")  # mappé sur ./logs/
 
 
 @dag(

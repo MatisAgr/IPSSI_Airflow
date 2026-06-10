@@ -1,5 +1,4 @@
 """TP2B - Pipeline complet Open-Meteo : extract -> transform -> load PostgreSQL + traçabilité."""
-# Récupération API -> transformation -> chargement PostgreSQL -> ligne de suivi d'ingestion
 
 from __future__ import annotations
 
@@ -14,14 +13,14 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 log = logging.getLogger(__name__)
 
-# --- Paramètres techniques (lus depuis le .env, pas de hardcode) ---
+# Paramètres techniques (lus depuis le .env, pas de hardcode)
 PG_CONN_ID = "weather_db"  # mappé sur AIRFLOW_CONN_WEATHER_DB
 OPEN_METEO_URL = os.environ.get("OPEN_METEO_URL", "https://api.open-meteo.com/v1/forecast")
 WEATHER_TABLE = os.environ.get("WEATHER_TABLE", "weather_measurements")
 INGESTION_TABLE = os.environ.get("INGESTION_TABLE", "ingestion_log")
 SCHEMA_SQL = Path("/opt/airflow/sql/schema.sql")
 
-# --- Paramètres métier ---
+# Paramètres métier
 _COORDS = {
     "Paris":  {"lat": 48.8534, "lon":  2.3488},
     "Berlin": {"lat": 52.5244, "lon": 13.4105},
