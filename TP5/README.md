@@ -222,6 +222,19 @@ docker compose exec weather-db psql -U weather -d weather -c "SELECT run_id, sta
 docker compose exec weather-db psql -U weather -d weather -c "SELECT * FROM quality_issues;"
 ```
 
+## Preuves d'exécution
+
+Dans [`livrable/`](livrable/) :
+
+| Fichier                 | Cas démontré                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `graph.png`             | capture UI du graphe du DAG (run nominal).                                                    |
+| `nominal.txt`           | run réussi : états des tâches, `weather_measurements`, `ingestion_log`.                       |
+| `anomalie.txt`          | anomalie : `load_measurements`/`record_success` *skipped*, `quality_issues`, 0 ligne chargée. |
+| `relance.txt`           | relance complète + partielle : compteurs stables, 0 doublon.                                  |
+| `logs.txt`              | extraits des logs applicatifs (modules `weather.*`) des deux cas.                             |
+| `scheduled__.../*.json` | exemple d'archives brutes (une réponse API par ville).                                        |
+
 ## Limites éventuelles
 
 - Anomalie qualité simulée via un toggle (`weather_force_anomaly`), pas issue
