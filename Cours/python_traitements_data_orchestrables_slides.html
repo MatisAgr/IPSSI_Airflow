@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python professionnel pour traitements data orchestrables</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2a;
+      --panel: #10243b;
+      --panel-2: #132b45;
+      --text: #f5f7fb;
+      --muted: #b8c7db;
+      --blue: #4da3ff;
+      --cyan: #62d0ff;
+      --green: #5ee4a8;
+      --orange: #ffb55e;
+      --red: #ff7b7b;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { counter-reset: slide; }
+    .deck { width: 100%; }
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      padding: 64px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(98,208,255,.10), transparent 30%),
+        radial-gradient(circle at top left, rgba(77,163,255,.10), transparent 28%),
+        linear-gradient(180deg, #091321 0%, #07111f 100%);
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .slide::after {
+      counter-increment: slide;
+      content: counter(slide, decimal-leading-zero);
+      position: absolute;
+      right: 28px;
+      bottom: 20px;
+      font-size: 14px;
+      letter-spacing: .18em;
+      color: rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p, ul, ol, pre { margin: 0; }
+    h1 {
+      font-size: 58px;
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      max-width: 1060px;
+    }
+    h2 {
+      font-size: 42px;
+      line-height: 1.08;
+      letter-spacing: -.025em;
+      max-width: 1120px;
+    }
+    h3 {
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .lead {
+      font-size: 25px;
+      line-height: 1.38;
+      color: var(--muted);
+      max-width: 1080px;
+    }
+    .text {
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .small {
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.12fr .88fr;
+      gap: 28px;
+      align-items: center;
+      flex: 1;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bullet-list li {
+      position: relative;
+      padding-left: 22px;
+      font-size: 21px;
+      line-height: 1.42;
+      color: var(--muted);
+    }
+    .bullet-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 0 4px rgba(98,208,255,.12);
+    }
+    .good-list li::before { background: var(--green); box-shadow: 0 0 0 4px rgba(94,228,168,.12); }
+    .danger-list li::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255,123,123,.12); }
+    .warn-list li::before { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,181,94,.14); }
+    .kicker-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .accent { color: var(--cyan); }
+    .quote {
+      padding: 22px 24px;
+      border-left: 4px solid var(--cyan);
+      background: rgba(98,208,255,.08);
+      border-radius: 16px;
+      font-size: 24px;
+      line-height: 1.38;
+      color: var(--text);
+      max-width: 1120px;
+    }
+    .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .metric { padding: 20px; border-radius: 22px; background: rgba(255,255,255,.04); border: 1px solid var(--border); }
+    .metric .value { font-size: 34px; font-weight: 800; letter-spacing: -.03em; color: var(--text); margin-bottom: 6px; }
+    .metric .label { font-size: 17px; color: var(--muted); line-height: 1.35; }
+    .timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .timeline .step { background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 18px; padding: 18px; min-height: 145px; }
+    .step .num { font-size: 14px; font-weight: 800; color: var(--cyan); letter-spacing: .14em; margin-bottom: 12px; }
+    .step h3 { font-size: 22px; margin-bottom: 10px; }
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 16px;
+      line-height: 1.45;
+      color: #edf6ff;
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 18px;
+      overflow: hidden;
+      white-space: pre-wrap;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .95em; color: var(--text); }
+    .process { display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap; }
+    .process .node { flex: 1 1 0; min-width: 140px; padding: 18px; border-radius: 20px; border: 1px solid var(--border); background: rgba(255,255,255,.04); text-align: center; font-size: 19px; font-weight: 700; }
+    .process .arrow { align-self: center; font-size: 28px; color: var(--cyan); padding: 0 4px; }
+    .tp-banner { display: inline-flex; align-self: flex-start; padding: 10px 16px; border-radius: 999px; background: rgba(94,228,168,.12); border: 1px solid rgba(94,228,168,.35); color: var(--green); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 15px; }
+    .compact li { font-size: 19px; gap: 8px; }
+    @media print {
+      @page { size: A4 landscape; margin: 0; }
+      html, body { background: #07111f; }
+      .slide { min-height: 100vh; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+
+<section class="slide">
+  <div class="eyebrow">Master 2 — Python & Data Engineering</div>
+  <div class="hero">
+    <div style="display:flex;flex-direction:column;gap:24px;">
+      <h1>Python professionnel pour <span class="accent">traitements data orchestrables</span></h1>
+      <p class="lead">Transformer un script Python de traitement de données en composant propre, testable, configurable, observable et prêt à être exécuté par un orchestrateur.</p>
+      <div class="kicker-row">
+        <span class="pill">Structure projet</span><span class="pill">Configuration</span><span class="pill">Logs</span><span class="pill">Erreurs</span><span class="pill">Tests</span><span class="pill">CLI</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Fil rouge</h3>
+      <p class="text">Un orchestrateur ne rend pas un mauvais code fiable. Il rend seulement son exécution plus visible.</p>
+      <div class="quote" style="font-size:22px;">La qualité du pipeline dépend aussi de la qualité du code Python appelé.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Objectifs pédagogiques</div>
+  <h2>Ce qui doit être acquis à la fin de la journée</h2>
+  <div class="metric-row">
+    <div class="metric"><div class="value">01</div><div class="label">Distinguer orchestration et traitement Python</div></div>
+    <div class="metric"><div class="value">02</div><div class="label">Structurer un projet data en modules clairs</div></div>
+    <div class="metric"><div class="value">03</div><div class="label">Gérer configuration, erreurs et logs</div></div>
+    <div class="metric"><div class="value">04</div><div class="label">Tester les fonctions de transformation hors orchestrateur</div></div>
+  </div>
+  <div class="timeline">
+    <div class="step"><div class="num">MATIN</div><h3>Architecture</h3><p class="small">Rôle de Python dans une chaîne data orchestrée.</p></div>
+    <div class="step"><div class="num">MATIN</div><h3>Projet</h3><p class="small">Du script unique au projet structuré.</p></div>
+    <div class="step"><div class="num">MATIN</div><h3>Données</h3><p class="small">Entrées, sorties, formats, cas limites.</p></div>
+    <div class="step"><div class="num">APRÈS-MIDI</div><h3>Robustesse</h3><p class="small">Configuration, erreurs, logs, tests.</p></div>
+    <div class="step"><div class="num">FIN</div><h3>TP fil rouge</h3><p class="small">Refactoriser un script data en job orchestrable.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">I.a — Rôle de Python</div>
+  <h2>Python fait le travail ; l’orchestrateur organise le travail</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Python répond à</h3><ul class="bullet-list good-list"><li>comment récupérer une donnée ;</li><li>comment la transformer ;</li><li>comment calculer un indicateur ;</li><li>comment écrire le résultat ;</li><li>comment signaler un problème métier.</li></ul></div>
+    <div class="card"><h3>L’orchestrateur répond à</h3><ul class="bullet-list"><li>quand lancer le traitement ;</li><li>dans quel ordre ;</li><li>que faire si une étape échoue ;</li><li>comment voir les logs ;</li><li>comment relancer proprement.</li></ul></div>
+  </div>
+  <div class="quote">Exemple : Python nettoie le CSV de ventes et charge les KPI ; l’orchestrateur déclenche le traitement chaque matin, vérifie l’ordre et conserve l’historique.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">I.b — Séparation des responsabilités</div>
+  <h2>Un bon traitement Python doit pouvoir vivre hors de l’outil qui l’exécute</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Erreur classique</h3><ul class="bullet-list danger-list"><li>mettre toute la logique dans le DAG ;</li><li>écrire des fonctions longues directement dans l’orchestrateur ;</li><li>embarquer SQL, chemins, paramètres et règles métier partout ;</li><li>rendre le traitement difficile à tester hors outil.</li></ul></div>
+    <div class="card"><h3>Bon réflexe</h3><ul class="bullet-list good-list"><li>écrire un code Python autonome ;</li><li>le rendre lançable indépendamment ;</li><li>l’appeler ensuite depuis Airflow, cron, n8n, un job cloud ou une CLI ;</li><li>protéger le projet si l’orchestrateur change.</li></ul></div>
+  </div>
+  <pre class="code">Orchestrateur = déclencher, ordonner, superviser
+Python = traiter, transformer, contrôler, charger</pre>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">I.c — Script data fragile</div>
+  <h2>Un script qui marche une fois n’est pas un composant professionnel</h2>
+  <div class="grid-2">
+    <pre class="code">import pandas as pd
+import requests
+
+url = "https://api.exemple.com/sales"
+r = requests.get(url)
+data = r.json()
+
+df = pd.DataFrame(data["results"])
+df["date"] = pd.to_datetime(df["date"])
+df["amount"] = df["amount"].astype(float)
+df = df[df["amount"] > 0]
+
+df.to_csv("C:/Users/mathieu/Desktop/result.csv", index=False)
+print("done")</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">I.d — Job data autonome</div>
+  <h2>Un job professionnel a un contrat d’exécution clair</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Il doit avoir</h3><ul class="bullet-list good-list"><li>une entrée claire ;</li><li>une sortie claire ;</li><li>une configuration explicite ;</li><li>une gestion des erreurs ;</li><li>des logs exploitables ;</li><li>un comportement reproductible ;</li><li>une documentation minimale ;</li><li>des tests sur les parties critiques.</li></ul></div>
+    <div class="card"><h3>Questions à poser</h3><ul class="bullet-list"><li>qu’est-ce qu’il lit ?</li><li>qu’est-ce qu’il produit ?</li><li>quels paramètres utilise-t-il ?</li><li>comment sait-on qu’il a réussi ?</li><li>comment sait-on pourquoi il a échoué ?</li></ul></div>
+  </div>
+  <div class="quote">Mini-exercice oral : météo, fichier clients, KPI de ventes — identifier entrée, sortie, paramètres, erreur bloquante et logs attendus.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">II.a — Du script au projet</div>
+  <h2>Un projet organisé répond à “comment ce traitement peut-il vivre dans le temps ?”</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Script unique</h3><ul class="bullet-list warn-list"><li>acceptable pour une démonstration ;</li><li>utile en exploration ;</li><li>rapide pour un prototype ;</li><li>devient vite fragile en maintenance.</li></ul></div>
+    <div class="card"><h3>Projet organisé</h3><ul class="bullet-list good-list"><li>sépare les responsabilités ;</li><li>rend le code lisible ;</li><li>permet de tester sans tout exécuter ;</li><li>facilite le remplacement d’une source ou cible ;</li><li>rend l’exécution automatisable.</li></ul></div>
+  </div>
+  <div class="quote">Un script répond : “comment je fais marcher ça maintenant ?” Un projet répond : “comment ce traitement peut-il vivre dans le temps ?”</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">II.b — Structure minimale</div>
+  <h2>Organisation recommandée pour un projet Python data</h2>
+  <div class="grid-2">
+    <pre class="code">data_job/
+  README.md
+  pyproject.toml
+  .env.example
+  src/
+    data_job/
+      __init__.py
+      config.py
+      extract.py
+      transform.py
+      validate.py
+      load.py
+      main.py
+  tests/
+    test_transform.py
+    test_validate.py</pre>
+    <div class="card"><h3>Message important</h3><p class="text">La structure n’est pas là pour faire joli : elle force à clarifier les responsabilités.</p><ul class="bullet-list"><li><span class="mono">README.md</span> explique lancement et paramètres ;</li><li><span class="mono">.env.example</span> documente la configuration ;</li><li><span class="mono">src/</span> contient le code applicatif ;</li><li><span class="mono">tests/</span> contient les tests unitaires.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">II.c — Découpage par responsabilité</div>
+  <h2>Chaque module doit avoir un rôle clair</h2>
+  <div class="grid-3">
+    <div class="card"><h3>Extraction</h3><p class="small"><span class="mono">extract.py</span> récupère la matière première. Il ne nettoie pas profondément les données.</p></div>
+    <div class="card"><h3>Transformation</h3><p class="small"><span class="mono">transform.py</span> prend une donnée récupérée et la transforme. Il n’appelle pas l’API.</p></div>
+    <div class="card"><h3>Validation</h3><p class="small"><span class="mono">validate.py</span> vérifie que la donnée est acceptable. Il ne charge pas en base.</p></div>
+  </div>
+  <div class="grid-2">
+    <pre class="code">def run():
+    config = load_config()
+    raw_data = extract_sales(config)
+    clean_data = transform_sales(raw_data)
+    validate_sales(clean_data)
+    load_sales(clean_data, config)</pre>
+    <div class="card"><h3>Lecture attendue</h3><p class="text">Le code raconte l’histoire du traitement. Même sans lire les détails, on comprend les étapes.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">II.d — Point d’entrée</div>
+  <h2>Un module ne doit pas exécuter un traitement lourd à l’import</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Bon point d’entrée</h3><pre class="code">def main():
+    config = load_config()
+    run(config)
+
+if __name__ == "__main__":
+    main()</pre></div>
+    <div class="card"><h3>Pourquoi c’est utile</h3><ul class="bullet-list good-list"><li>le fichier peut être lancé directement ;</li><li>les fonctions peuvent être importées dans des tests ;</li><li>l’orchestrateur peut appeler <span class="mono">main()</span> ;</li><li>l’import charge des définitions, pas le job.</li></ul></div>
+  </div>
+  <div class="quote">Mauvais réflexe : lancer <span class="mono">extract()</span>, <span class="mono">transform()</span>, <span class="mono">load()</span> au niveau du fichier.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">III.a — Sources data</div>
+  <h2>Les formats changent, mais les questions reviennent toujours</h2>
+  <div class="grid-3">
+    <div class="card"><h3>Sources classiques</h3><ul class="bullet-list"><li>CSV, JSON, Excel, Parquet ;</li><li>APIs ;</li><li>bases SQL ;</li><li>exports applicatifs ;</li><li>stockage objet ;</li><li>messages ou événements.</li></ul></div>
+    <div class="card"><h3>Questions de format</h3><ul class="bullet-list"><li>la donnée est-elle complète ?</li><li>le format est-il stable ?</li><li>les types sont-ils cohérents ?</li><li>que faire si la source est vide ?</li></ul></div>
+    <div class="card"><h3>Questions d’exploitation</h3><ul class="bullet-list"><li>le volume est-il raisonnable ?</li><li>la source peut-elle changer ?</li><li>quelle sortie attend-on ?</li><li>quelle anomalie doit bloquer ?</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">III.b — Ne jamais supposer la donnée propre</div>
+  <h2>Un traitement professionnel anticipe les imperfections</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Problèmes fréquents</h3><ul class="bullet-list danger-list"><li>colonne attendue absente ;</li><li>date au mauvais format ;</li><li>nombre sous forme de texte ;</li><li>fichier vide ;</li><li>doublons ;</li><li>API qui renvoie une erreur ;</li><li>champ optionnel ;</li><li>encodage incorrect.</li></ul></div>
+    <div class="card"><h3>Fragile vs explicite</h3><pre class="code"># fragile
+amount = float(row["amount"])
+
+# plus explicite
+def parse_amount(value: str) -> float:
+    if value is None or value == "":
+        raise ValueError("Missing amount")
+
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid amount: {value}") from exc</pre></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">III.c — Représenter les données</div>
+  <h2>Choisir la structure selon volume, lisibilité et besoin de validation</h2>
+  <div class="grid-3">
+    <div class="card"><h3>Liste de dictionnaires</h3><pre class="code">[
+  {"date": "2026-06-01", "store": "Paris", "amount": 120.5},
+  {"date": "2026-06-01", "store": "Lyon", "amount": 98.0},
+]</pre><p class="small">Simple, lisible, natif Python.</p></div>
+    <div class="card"><h3>DataFrame pandas</h3><pre class="code">df = pd.DataFrame(records)</pre><p class="small">Pratique pour manipuler des données tabulaires, mais peut masquer certains problèmes de types.</p></div>
+    <div class="card"><h3>Objet typé</h3><pre class="code">@dataclass
+class Sale:
+    sale_date: date
+    store: str
+    amount: float</pre><p class="small">Explicite, utile pour clarifier les règles.</p></div>
+  </div>
+  <div class="quote">Il n’y a pas une seule bonne représentation : le choix dépend du contexte.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">III.d — Sortie exploitable</div>
+  <h2>Un traitement ne doit pas “produire quelque chose quelque part”</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Sorties possibles</h3><ul class="bullet-list good-list"><li>fichier CSV nettoyé ;</li><li>table SQL ;</li><li>fichier Parquet ;</li><li>rapport d’anomalies ;</li><li>statut d’exécution ;</li><li>métriques de traitement ;</li><li>donnée prête pour un autre système.</li></ul></div>
+    <div class="card"><h3>Sortie bien définie</h3><p class="text">Le job écrit <span class="mono">sales_clean_YYYY-MM-DD.csv</span> dans le dossier configuré, avec les colonnes attendues, et produit un rapport d’erreurs si des lignes sont rejetées.</p></div>
+  </div>
+  <div class="quote">Sortie mal définie : “le script génère un fichier quelque part”.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IV.a — Fonctions pures</div>
+  <h2>Isoler la logique métier des effets de bord</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Fonction pure</h3><p class="small">Dépend uniquement de ses entrées et retourne un résultat. Elle ne lit pas de fichier, n’appelle pas d’API et n’écrit pas en base.</p><pre class="code">def normalize_store_name(name: str) -> str:
+    return name.strip().upper()</pre></div>
+    <div class="card"><h3>Fonction à effet de bord</h3><p class="small">Interagit avec l’extérieur : fichier, API, base, réseau.</p><pre class="code">def save_file(df, path):
+    df.to_csv(path, index=False)</pre></div>
+  </div>
+  <div class="quote">Mettre le maximum de logique métier dans des fonctions pures, et isoler les effets de bord.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IV.b — Fonctions fourre-tout</div>
+  <h2>Une fonction qui fait tout est difficile à tester et à maintenir</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Mauvais découpage</h3><pre class="code">def process():
+    # lire fichier
+    # nettoyer colonnes
+    # convertir dates
+    # filtrer lignes
+    # écrire fichier
+    # envoyer notification</pre><ul class="bullet-list danger-list compact"><li>test difficile ;</li><li>debug difficile ;</li><li>responsabilités mélangées.</li></ul></div>
+    <div class="card"><h3>Meilleure version</h3><pre class="code">def read_input(path): ...
+def clean_columns(df): ...
+def normalize_dates(df): ...
+def filter_invalid_rows(df): ...
+def write_output(df, path): ...</pre><p class="small">Chaque fonction peut être comprise, testée et remplacée séparément.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IV.c — Nommage</div>
+  <h2>Le nom d’une fonction doit exprimer son intention</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Exemples faibles</h3><ul class="bullet-list danger-list"><li><span class="mono">process()</span></li><li><span class="mono">clean()</span></li><li><span class="mono">do_stuff()</span></li><li><span class="mono">format_data()</span></li><li><span class="mono">final_data()</span></li></ul></div>
+    <div class="card"><h3>Exemples meilleurs</h3><ul class="bullet-list good-list"><li><span class="mono">normalize_column_names()</span></li><li><span class="mono">parse_sale_dates()</span></li><li><span class="mono">remove_duplicate_orders()</span></li><li><span class="mono">compute_daily_revenue()</span></li><li><span class="mono">validate_required_columns()</span></li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IV.d — Cas limites</div>
+  <h2>Le code doit décider explicitement quoi faire</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Cas à prévoir</h3><ul class="bullet-list warn-list"><li>donnée vide ;</li><li>colonne absente ;</li><li>date invalide ;</li><li>montant négatif ;</li><li>doublon ;</li><li>valeur nulle ;</li><li>devise inconnue ;</li><li>format inattendu.</li></ul></div>
+    <div class="card"><h3>Exemple</h3><pre class="code">def compute_average_amount(amounts: list[float]) -> float:
+    if not amounts:
+        raise ValueError("Cannot compute average on empty list")
+
+    return sum(amounts) / len(amounts)</pre><p class="small">Retourner <span class="mono">0</span> sans justification masque une anomalie.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">V.a — Hardcode</div>
+  <h2>Les valeurs de contexte ne doivent pas être dispersées dans le code</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Valeurs à configurer</h3><ul class="bullet-list"><li>chemin de fichier ;</li><li>URL d’API ;</li><li>nom de base ou table ;</li><li>seuil métier ;</li><li>date de traitement ;</li><li>clé API, identifiant, mot de passe.</li></ul></div>
+    <div class="card"><h3>Mauvais exemple</h3><pre class="code">API_URL = "https://api.company.com/prod/sales"
+OUTPUT_PATH = "C:/Users/admin/Desktop/result.csv"
+MIN_AMOUNT = 100</pre><ul class="bullet-list danger-list compact"><li>peu réutilisable ;</li><li>risque sécurité ;</li><li>tests plus pénibles ;</li><li>modification du code à chaque environnement.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">V.b — Types de configuration</div>
+  <h2>Distinguer configuration technique et configuration métier</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Technique</h3><ul class="bullet-list"><li>URL, chemin, host, port ;</li><li>nom de base ;</li><li>timeout ;</li><li>credentials ;</li><li>répertoire de sortie.</li></ul></div>
+    <div class="card"><h3>Métier</h3><ul class="bullet-list good-list"><li>pays à traiter ;</li><li>seuil d’anomalie ;</li><li>colonnes attendues ;</li><li>période ;</li><li>règle de filtrage ;</li><li>devise ou type de client.</li></ul></div>
+  </div>
+  <pre class="code">@dataclass
+class TechnicalConfig:
+    api_url: str
+    output_path: str
+    timeout_seconds: int
+
+@dataclass
+class BusinessConfig:
+    min_amount: float
+    expected_currency: str
+    required_columns: list[str]</pre>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">V.c — Variables d’environnement</div>
+  <h2>Centraliser la lecture de configuration dans un module dédié</h2>
+  <div class="grid-2">
+    <pre class="code">from dataclasses import dataclass
+import os
+
+@dataclass
+class Config:
+    api_url: str
+    output_path: str
+    timeout_seconds: int
+
+def load_config() -> Config:
+    return Config(
+        api_url=get_required_env("API_URL"),
+        output_path=get_required_env("OUTPUT_PATH"),
+        timeout_seconds=int(os.getenv("TIMEOUT_SECONDS", "30")),
+    )
+
+def get_required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value</pre>
+    <div class="card"><h3><span class="mono">.env.example</span></h3><pre class="code">API_URL=https://api.example.com/sales
+OUTPUT_PATH=./output/sales.csv
+TIMEOUT_SECONDS=30</pre><p class="small"><span class="mono">.env.example</span> est versionné ; <span class="mono">.env</span> ne doit généralement pas être versionné.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">V.d — Validation de configuration</div>
+  <h2>Échouer tôt vaut mieux qu’un comportement ambigu</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Mauvaise situation</h3><p class="text">Le job tourne pendant 15 minutes puis plante parce que <span class="mono">OUTPUT_PATH</span> est absent.</p></div>
+    <div class="card"><h3>Bonne situation</h3><p class="text">Le job vérifie au démarrage que les paramètres essentiels existent et sont cohérents.</p></div>
+  </div>
+  <div class="grid-3">
+    <div class="card"><h3>Variables</h3><p class="small">Variable obligatoire absente, URL vide, chemin inaccessible.</p></div>
+    <div class="card"><h3>Types</h3><p class="small">Timeout non numérique, seuil négatif, valeur non reconnue.</p></div>
+    <div class="card"><h3>Métier</h3><p class="small">Configuration incompatible avec le traitement attendu.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VI.a — Typologie des erreurs</div>
+  <h2>Bug, erreur technique et erreur métier ne demandent pas la même réaction</h2>
+  <div class="grid-3">
+    <div class="card"><h3>Bug</h3><p class="small">Le code est faux : mauvaise variable, mauvais type, erreur de logique. Il faut corriger le code.</p></div>
+    <div class="card"><h3>Erreur technique</h3><p class="small">Système externe indisponible : API, fichier, base, timeout. Parfois retentable.</p></div>
+    <div class="card"><h3>Erreur métier</h3><p class="small">Le traitement tourne, mais la donnée ne respecte pas les règles : fichier vide, colonnes absentes, montant négatif.</p></div>
+  </div>
+  <div class="quote">Exercice oral : classer une liste d’erreurs, puis décider si on arrête, ignore, rejette, log ou remonte.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VI.b — Exceptions explicites</div>
+  <h2>Nommer les erreurs rend le traitement plus lisible</h2>
+  <div class="grid-2">
+    <pre class="code">class DataJobError(Exception):
+    pass
+
+class InvalidSchemaError(DataJobError):
+    pass
+
+class DataQualityError(DataJobError):
+    pass
+
+class LoadError(DataJobError):
+    pass</pre>
+    <pre class="code">def validate_required_columns(df, required_columns):
+    missing = [col for col in required_columns if col not in df.columns]
+
+    if missing:
+        raise InvalidSchemaError(
+            f"Missing required columns: {missing}"
+        )</pre>
+  </div>
+  <div class="quote">Une erreur nommée est beaucoup plus claire qu’un simple <span class="mono">KeyError</span> perdu dans les logs.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VI.c — Ne pas masquer</div>
+  <h2>Une erreur cachée rend le job dangereux pour l’orchestration</h2>
+  <div class="grid-2">
+    <div class="card"><h3>À éviter</h3><pre class="code">try:
+    load_data(df)
+except Exception:
+    pass</pre><pre class="code">try:
+    load_data(df)
+except Exception:
+    print("error")</pre></div>
+    <div class="card"><h3>Meilleure approche</h3><pre class="code">try:
+    load_data(df)
+except Exception as exc:
+    logger.exception("Failed to load data")
+    raise LoadError("Data loading failed") from exc</pre><p class="small"><span class="mono">raise ... from exc</span> garde la cause initiale et ajoute un message métier.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VI.d — Comportement en cas d’échec</div>
+  <h2>Chaque erreur importante doit avoir une décision associée</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Exemples de décisions</h3><ul class="bullet-list"><li>fichier absent : arrêter ;</li><li>fichier vide : erreur métier ou statut no data ;</li><li>ligne invalide : rejeter ou bloquer selon le besoin ;</li><li>API indisponible : erreur technique ;</li><li>table cible inaccessible : arrêter ;</li><li>taux d’erreurs &gt; 5 % : bloquer.</li></ul></div>
+    <div class="card"><h3>Question à poser</h3><p class="lead" style="font-size:28px;">Le job doit-il continuer, rejeter, alerter ou échouer ?</p><p class="small">Cette décision doit être explicite dans le code, pas laissée au hasard.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VII.a — Logging</div>
+  <h2>Remplacer les <span class="mono">print()</span> par des logs exploitables</h2>
+  <div class="grid-2">
+    <pre class="code">import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)</pre>
+    <pre class="code">logger.info("Starting sales job")
+logger.info("Loaded %s rows from source", len(df))
+logger.warning("Rejected %s invalid rows", rejected_count)
+logger.error("Failed to load output file")</pre>
+  </div>
+  <div class="quote">En exécution automatisée, un log doit être horodaté, filtrable et utile au diagnostic.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VII.b — Niveaux de logs</div>
+  <h2>Chaque niveau porte une intention</h2>
+  <div class="grid-4">
+    <div class="card"><h3>DEBUG</h3><p class="small">Détail technique utile en développement.</p></div>
+    <div class="card"><h3>INFO</h3><p class="small">Étape normale du traitement : extraction démarrée, lignes reçues.</p></div>
+    <div class="card"><h3>WARNING</h3><p class="small">Anomalie non bloquante : lignes rejetées, valeur absente tolérée.</p></div>
+    <div class="card"><h3>ERROR</h3><p class="small">Erreur empêchant une partie du traitement : chargement impossible.</p></div>
+  </div>
+  <div class="quote">CRITICAL existe, mais reste rarement nécessaire dans des petits jobs data.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VII.c — Logs utiles</div>
+  <h2>Un bon log aide à comprendre ce qui s’est passé</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Informations à logger</h3><ul class="bullet-list good-list"><li>source traitée ;</li><li>période ;</li><li>lignes lues, transformées, rejetées, chargées ;</li><li>durée ;</li><li>configuration principale ;</li><li>point d’échec.</li></ul></div>
+    <pre class="code">logger.info(
+    "Transformation completed: input_rows=%s output_rows=%s rejected_rows=%s",
+    input_count,
+    output_count,
+    rejected_count
+)</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VII.d — Logs dangereux</div>
+  <h2>Un log doit aider à diagnostiquer, pas exposer ou polluer</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Ne pas logger</h3><ul class="bullet-list danger-list"><li>mots de passe ;</li><li>tokens ;</li><li>clés API ;</li><li>données personnelles ;</li><li>fichiers entiers ;</li><li>payloads énormes ;</li><li>bruit verbeux en production.</li></ul></div>
+    <div class="card"><h3>Exemple</h3><pre class="code"># à éviter
+logger.info("Using token: %s", api_token)
+
+# préférable
+logger.info("API token loaded: %s", bool(api_token))</pre></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VIII.a — Tests hors orchestrateur</div>
+  <h2>Les tests Python vérifient la logique ; l’orchestrateur vérifie l’exécution du workflow</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Pourquoi isoler</h3><ul class="bullet-list good-list"><li>tests rapides ;</li><li>diagnostic plus clair ;</li><li>pas besoin de lancer Airflow ;</li><li>fonctions vérifiées avant orchestration ;</li><li>détection précoce des régressions.</li></ul></div>
+    <div class="card"><h3>À éviter</h3><ul class="bullet-list danger-list"><li>tester toute la logique uniquement dans l’orchestrateur ;</li><li>rendre chaque test lent et fragile ;</li><li>mélanger erreur de workflow et erreur métier ;</li><li>attendre la production pour découvrir les cas limites.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VIII.b — Tester les transformations</div>
+  <h2>Une entrée contrôlée doit produire une sortie attendue</h2>
+  <div class="grid-2">
+    <pre class="code">def normalize_amount(value):
+    if value is None:
+        raise ValueError("Amount is missing")
+    return float(value)
+
+def test_normalize_amount_from_string():
+    assert normalize_amount("12.5") == 12.5</pre>
+    <pre class="code">def remove_negative_amounts(df):
+    return df[df["amount"] >= 0]
+
+def test_remove_negative_amounts():
+    df = pd.DataFrame({"amount": [10, -5, 20]})
+    result = remove_negative_amounts(df)
+    assert len(result) == 2
+    assert result["amount"].tolist() == [10, 20]</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VIII.c — Cas limites</div>
+  <h2>Tester aussi ce qui ne doit pas passer</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Cas à tester</h3><ul class="bullet-list warn-list"><li>liste vide ;</li><li>DataFrame vide ;</li><li>colonne manquante ;</li><li>valeur nulle ;</li><li>doublon ;</li><li>type incorrect ;</li><li>date invalide ;</li><li>montant négatif.</li></ul></div>
+    <pre class="code">import pytest
+
+def test_normalize_amount_raises_on_missing_value():
+    with pytest.raises(ValueError):
+        normalize_amount(None)</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">VIII.d — Erreurs attendues</div>
+  <h2>Un test doit vérifier que le code échoue correctement</h2>
+  <div class="grid-2">
+    <pre class="code">def validate_required_columns(df, required_columns):
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        raise InvalidSchemaError(f"Missing required columns: {missing}")</pre>
+    <pre class="code">def test_validate_required_columns_raises_when_column_missing():
+    df = pd.DataFrame({"amount": [10]})
+
+    with pytest.raises(InvalidSchemaError):
+        validate_required_columns(df, ["amount", "date"])</pre>
+  </div>
+  <div class="quote">Un échec prévisible et bien nommé est préférable à un crash inattendu.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IX.a — Traitement appelable</div>
+  <h2>Un job doit pouvoir être lancé par une commande claire</h2>
+  <div class="grid-2">
+    <pre class="code">python -m data_job.main --date 2026-06-01 --source sales</pre>
+    <div class="card"><h3>Intérêt</h3><ul class="bullet-list good-list"><li>appelable en local ;</li><li>paramétrable par un orchestrateur ;</li><li>contrat d’exécution explicite ;</li><li>commande documentable dans le README.</li></ul></div>
+  </div>
+  <pre class="code">import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True)
+    parser.add_argument("--source", required=True)
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    config = load_config()
+    run(config=config, run_date=args.date, source=args.source)</pre>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IX.b — Statut clair</div>
+  <h2>L’orchestrateur doit savoir si le traitement a réussi ou échoué</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Règle simple</h3><ul class="bullet-list"><li>programme terminé normalement = succès ;</li><li>exception non rattrapée = échec ;</li><li>erreur cachée = faux succès dangereux.</li></ul></div>
+    <pre class="code">def main():
+    try:
+        config = load_config()
+        run(config)
+    except DataJobError:
+        logger.exception("Data job failed")
+        raise</pre>
+  </div>
+  <div class="quote">On log l’erreur, puis on la remonte. L’orchestrateur verra l’échec.</div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IX.c — Indépendance locale</div>
+  <h2>Le job ne doit pas dépendre du poste du développeur</h2>
+  <div class="grid-2">
+    <div class="card"><h3>À éviter</h3><ul class="bullet-list danger-list"><li>chemins absolus ;</li><li>fichiers sur le bureau ;</li><li>dossier temporaire non maîtrisé ;</li><li>configuration non documentée ;</li><li>fichier source supposé présent sans contrôle.</li></ul></div>
+    <div class="card"><h3>Exemple</h3><pre class="code"># mauvais
+path = "C:/Users/Paul/Desktop/input.csv"
+
+# meilleur
+path = config.input_path</pre><p class="small"><span class="mono">INPUT_PATH</span> doit être documenté dans <span class="mono">.env.example</span>.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">IX.d — Exécution répétée</div>
+  <h2>Un job relancé ne doit pas créer un état incohérent</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Comportements dangereux</h3><ul class="bullet-list danger-list"><li>ajouter les mêmes lignes à chaque relance ;</li><li>écraser un fichier sans prévenir ;</li><li>mélanger les résultats de deux dates ;</li><li>écrire un fichier partiel comme complet ;</li><li>confondre fichier temporaire et final.</li></ul></div>
+    <div class="card"><h3>Bonnes pratiques simples</h3><ul class="bullet-list good-list"><li>écrire d’abord dans un fichier temporaire ;</li><li>renommer en final à la fin ;</li><li>inclure la date de traitement ;</li><li>contrôler l’existence de la sortie ;</li><li>logger ce qui a été écrit.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">X.a — Versionner</div>
+  <h2>Un job data professionnel doit vivre dans Git</h2>
+  <div class="grid-2">
+    <div class="card"><h3>À éviter</h3><ul class="bullet-list danger-list"><li>code envoyé par mail ;</li><li>script stocké uniquement sur un poste ;</li><li><span class="mono">script_final_v3_ok.py</span> ;</li><li>modifications non tracées.</li></ul></div>
+    <div class="card"><h3>À mettre en place</h3><ul class="bullet-list good-list"><li>commits lisibles ;</li><li>branches ;</li><li>historique ;</li><li>revue de code ;</li><li>détection des erreurs avant production.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">X.b — README</div>
+  <h2>Documenter le lancement est une partie du travail</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Contenu minimal</h3><ul class="bullet-list"><li>objectif du job ;</li><li>source lue ;</li><li>sortie produite ;</li><li>variables d’environnement ;</li><li>installation ;</li><li>commande d’exécution ;</li><li>commande de test ;</li><li>erreurs fréquentes.</li></ul></div>
+    <pre class="code"># Sales Cleaning Job
+
+## Objectif
+Nettoyer un fichier de ventes quotidien et produire un fichier exploitable.
+
+## Variables d'environnement
+INPUT_PATH=./data/input.csv
+OUTPUT_PATH=./output/sales_clean.csv
+MIN_AMOUNT=0
+
+## Lancer le job
+python -m data_job.main --date 2026-06-01
+
+## Lancer les tests
+pytest</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">X.c — Vérification automatique</div>
+  <h2>Préparer progressivement l’intégration continue</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Outils possibles</h3><ul class="bullet-list"><li><span class="mono">pytest</span> pour les tests ;</li><li><span class="mono">ruff</span> pour le linting ;</li><li><span class="mono">black</span> pour le formatage ;</li><li>GitHub Actions ou GitLab CI pour automatiser.</li></ul></div>
+    <div class="card"><h3>Pipeline mental</h3><ul class="bullet-list good-list"><li>à chaque modification, lancer les tests ;</li><li>si les tests échouent, ne pas déployer ;</li><li>si le code est mal formaté, corriger avant merge ;</li><li>vérifier avant exécution automatique.</li></ul></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">X.d — Passage vers l’orchestrateur</div>
+  <h2>Contrat attendu avant d’être appelé par Airflow, n8n ou autre</h2>
+  <div class="grid-2">
+    <div class="card"><h3>Le job doit fournir</h3><ul class="bullet-list good-list"><li>une commande de lancement claire ;</li><li>des paramètres explicites ;</li><li>des logs exploitables ;</li><li>une exception en cas d’échec ;</li><li>une configuration documentée ;</li><li>un code testé ;</li><li>une sortie connue.</li></ul></div>
+    <div class="card"><h3>Phrase clé</h3><p class="lead" style="font-size:30px;">Si votre traitement ne peut pas tourner proprement sans orchestrateur, il ne tournera pas proprement avec orchestrateur.</p></div>
+  </div>
+</section>
+
+
+  </main>
+</body>
+</html>

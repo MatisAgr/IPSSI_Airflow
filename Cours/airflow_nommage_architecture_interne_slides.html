@@ -1,0 +1,630 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airflow — Nommage, granularité et architecture interne</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2a;
+      --panel: #10243b;
+      --panel-2: #132b45;
+      --text: #f5f7fb;
+      --muted: #b8c7db;
+      --blue: #4da3ff;
+      --cyan: #62d0ff;
+      --green: #5ee4a8;
+      --orange: #ffb55e;
+      --red: #ff7b7b;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { counter-reset: slide; }
+    .deck { width: 100%; }
+    .slide { position: relative; min-height: 100vh; padding: 64px 72px; display: flex; flex-direction: column; justify-content: flex-start; gap: 28px; background: radial-gradient(circle at top right, rgba(98,208,255,.10), transparent 30%), radial-gradient(circle at top left, rgba(77,163,255,.10), transparent 28%), linear-gradient(180deg, #091321 0%, #07111f 100%); page-break-after: always; overflow: hidden; }
+    .slide::after { counter-increment: slide; content: counter(slide, decimal-leading-zero); position: absolute; right: 28px; bottom: 20px; font-size: 14px; letter-spacing: .18em; color: rgba(255,255,255,.35); font-weight: 700; }
+    .eyebrow { color: var(--cyan); font-size: 18px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3, p, ul, ol, pre { margin: 0; }
+    h1 { font-size: 58px; line-height: 1.02; letter-spacing: -.03em; max-width: 1100px; }
+    h2 { font-size: 42px; line-height: 1.08; letter-spacing: -.025em; max-width: 1120px; }
+    h3 { font-size: 24px; line-height: 1.2; color: var(--text); }
+    .lead { font-size: 25px; line-height: 1.38; color: var(--muted); max-width: 1080px; }
+    .text { font-size: 22px; line-height: 1.45; color: var(--muted); }
+    .small { font-size: 18px; line-height: 1.45; color: var(--muted); }
+    .grid-2, .grid-3, .grid-4 { display: grid; gap: 20px; width: 100%; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; flex: 1; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .quote { padding: 22px 24px; border-left: 4px solid var(--cyan); background: rgba(98,208,255,.08); border-radius: 16px; font-size: 24px; line-height: 1.38; color: var(--text); max-width: 1120px; }
+    .accent { color: var(--cyan); }
+    .kicker-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .pill { padding: 10px 14px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--border); color: var(--text); font-size: 16px; font-weight: 600; }
+    .bullet-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+    .bullet-list li { position: relative; padding-left: 22px; font-size: 21px; line-height: 1.42; color: var(--muted); }
+    .bullet-list li::before { content: ""; position: absolute; left: 0; top: .58em; width: 9px; height: 9px; border-radius: 999px; background: linear-gradient(135deg, var(--cyan), var(--blue)); box-shadow: 0 0 0 4px rgba(98,208,255,.12); }
+    .good-list li::before { background: var(--green); box-shadow: 0 0 0 4px rgba(94,228,168,.12); }
+    .danger-list li::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255,123,123,.12); }
+    .warn-list li::before { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,181,94,.14); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .95em; color: var(--text); }
+    pre.code { padding: 22px; border-radius: 20px; border: 1px solid rgba(98,208,255,.18); background: rgba(3,10,20,.72); color: #f5f7fb; font-size: 19px; line-height: 1.42; white-space: pre-wrap; box-shadow: var(--shadow); overflow: hidden; }
+    .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .metric { padding: 20px; border-radius: 22px; background: rgba(255,255,255,.04); border: 1px solid var(--border); }
+    .metric .value { font-size: 34px; font-weight: 800; letter-spacing: -.03em; color: var(--text); margin-bottom: 6px; }
+    .metric .label { font-size: 17px; color: var(--muted); line-height: 1.35; }
+    .flow-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:16px; width:100%; }
+    .flow-item { padding:20px; border-radius:22px; background: rgba(255,255,255,.04); border:1px solid var(--border); min-height:112px; }
+    .flow-item .tag { font-size:14px; font-weight:800; color:var(--cyan); letter-spacing:.12em; margin-bottom:10px; text-transform:uppercase; }
+    .compare { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .compare .col { padding: 22px; border-radius: 22px; border: 1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); display:flex; flex-direction:column; gap:14px; }
+    .tag { display: inline-flex; align-self: flex-start; padding: 8px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #08111e; background: var(--cyan); margin-bottom: 4px; }
+    .tag.orange { background: var(--orange); }
+    .tag.green { background: var(--green); }
+    .tag.red { background: var(--red); }
+    .diagram { padding: 24px; border-radius: 26px; border: 1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)); }
+    table { width: 100%; border-collapse: collapse; font-size: 18px; color: var(--muted); overflow: hidden; border-radius: 18px; }
+    th, td { border: 1px solid var(--border); padding: 13px 14px; vertical-align: top; }
+    th { color: var(--text); background: rgba(98,208,255,.10); text-align: left; }
+    td.ok { color: var(--green); font-weight: 700; }
+    td.no { color: var(--red); font-weight: 700; }
+    @media print { @page { size: A4 landscape; margin: 0; } html, body { background: #07111f; } .slide { min-height: 100vh; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <main class="deck">
+
+<section class="slide">
+  <div class="eyebrow">Master 2 — Apache Airflow</div>
+  <div class="hero">
+    <div style="display:flex;flex-direction:column;gap:24px;">
+      <h1>Bonnes pratiques de <span class="accent">nommage</span>, granularité des tâches et architecture interne d’Airflow</h1>
+      <p class="lead">Nommer correctement les DAGs et les tâches, distinguer étapes métier et détails techniques, puis comprendre comment Airflow passe d’un fichier Python à une exécution supervisée.</p>
+      <div class="kicker-row">
+        <span class="pill">Nommage</span><span class="pill">Granularité</span><span class="pill">Étapes métier</span><span class="pill">Scheduler</span><span class="pill">Executor</span><span class="pill">Metadata DB</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Objectif de la séquence</h3>
+      <ul class="bullet-list good-list">
+        <li>Nommer correctement un DAG et ses tâches.</li>
+        <li>Distinguer une étape métier d’un détail technique.</li>
+        <li>Décider si une opération mérite une tâche Airflow séparée.</li>
+        <li>Expliquer les principaux composants internes d’Airflow.</li>
+        <li>Comprendre comment Airflow passe d’un fichier Python à une exécution supervisée.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide ">
+<div class="eyebrow">1 — Nommage</div>
+<h2>Pourquoi le nommage est important dans Airflow</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Un DAG doit pouvoir être</h3><ul class="bullet-list good-list"><li>lu rapidement ;</li><li>compris sans ouvrir tout le code ;</li><li>supervisé dans l’interface ;</li><li>diagnostiqué en cas d’échec ;</li><li>maintenu dans le temps ;</li><li>expliqué à une autre personne.</li></ul></div>
+  <div class="card"><h3>Dans un vrai projet</h3><p class="text">Un mauvais nommage devient vite un problème : on ne sait pas ce que fait chaque tâche, quelle étape est critique, où se situe l’erreur, ni quelle partie peut être relancée.</p></div>
+</div>
+<div class="quote">Dans Airflow, un bon nom permet de comprendre le workflow avant même de lire le code.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">1 — Nommage</div>
+<h2>Un graphe peut fonctionner techniquement et rester illisible</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Mauvais DAG</h3><pre class="code"><code>task1 &gt;&gt; task2 &gt;&gt; task3</code></pre><p class="small">Ce graphe ne dit rien : aucune intention, aucune donnée, aucun rôle.</p></div>
+  <div class="card"><h3>DAG plus lisible</h3><pre class="code"><code>fetch_weather_data
+&gt;&gt; validate_weather_payload
+&gt;&gt; transform_weather_records
+&gt;&gt; load_weather_to_postgres
+&gt;&gt; write_ingestion_log</code></pre><p class="small">Même sans lire le code, on comprend la logique générale.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">2 — Nommer un DAG</div>
+<h2>Le nom du DAG doit décrire le processus orchestré</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>À éviter</h3><ul class="bullet-list danger-list"><li><span class="mono">test</span></li><li><span class="mono">dag1</span></li><li><span class="mono">python_dag</span></li><li><span class="mono">weather</span></li><li><span class="mono">new_pipeline</span></li></ul></div>
+  <div class="card"><h3>Bon nom : information minimale</h3><ul class="bullet-list good-list"><li>le domaine ;</li><li>le processus ;</li><li>éventuellement la fréquence ;</li><li>éventuellement la cible.</li></ul></div>
+</div>
+<div class="grid-2">
+  <div class="card"><h3>Exemples corrects</h3><ul class="bullet-list "><li><span class="mono">weather_daily_ingestion</span></li><li><span class="mono">openmeteo_multi_city_ingestion</span></li><li><span class="mono">exchange_rates_daily_pipeline</span></li><li><span class="mono">customer_orders_hourly_sync</span></li></ul></div>
+  <div class="card"><h3>Fil rouge Open-Meteo</h3><p class="text"><span class="mono">openmeteo_daily_city_weather_ingestion</span></p><p class="small">Source : Open-Meteo. Fréquence : daily. Périmètre : city weather. Type : ingestion.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">2 — Nommer un DAG</div>
+<h2>Précis, mais pas illisible</h2>
+
+<div class="compare">
+  <div class="col"><div class="tag red">Trop court</div><h3><span class="mono">weather</span></h3><p class="small">On ne connaît ni la source, ni la fréquence, ni le processus.</p></div>
+  <div class="col"><div class="tag orange">Trop long</div><h3 class="mono" style="font-size:18px;line-height:1.45;">daily_pipeline_that_fetches_weather_from_openmeteo_for_multiple_cities_and_loads_it_to_postgres</h3><p class="small">Le nom devient difficile à lire dans l’UI.</p></div>
+  <div class="col"><div class="tag green">Bon équilibre</div><h3><span class="mono">openmeteo_daily_weather_ingestion</span></h3><p class="small">Le nom est spécifique, stable et lisible.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">3 — Nommer les tâches</div>
+<h2>Une tâche commence par un verbe d’action</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Verbes utiles</h3><div class="kicker-row"><span class="pill">fetch</span><span class="pill">extract</span><span class="pill">validate</span><span class="pill">transform</span><span class="pill">load</span><span class="pill">check</span><span class="pill">write</span><span class="pill">notify</span><span class="pill">archive</span><span class="pill">generate</span><span class="pill">send</span></div></div>
+  <div class="card"><h3>Exemples</h3><ul class="bullet-list good-list"><li><span class="mono">fetch_weather_data</span></li><li><span class="mono">validate_weather_payload</span></li><li><span class="mono">transform_weather_records</span></li><li><span class="mono">load_weather_to_postgres</span></li><li><span class="mono">notify_ingestion_failure</span></li></ul></div>
+</div>
+<div class="card"><h3>À éviter</h3><div class="kicker-row"><span class="pill">weather</span><span class="pill">data</span><span class="pill">process</span><span class="pill">step1</span><span class="pill">final</span><span class="pill">function</span></div></div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">3 — Nommer les tâches</div>
+<h2>Le nom doit indiquer l’objet manipulé et rester stable</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Vague</h3><pre class="code"><code>validate_data</code></pre><p class="small">Acceptable dans un petit TP, mais trop générique dans un vrai pipeline.</p></div>
+  <div class="card"><h3>Plus clair</h3><pre class="code"><code>validate_weather_payload
+validate_openmeteo_response</code></pre><p class="small">On comprend immédiatement ce qui est validé.</p></div>
+</div>
+<div class="grid-2">
+  <div class="card"><h3>Nom fragile</h3><pre class="code"><code>call_requests_library</code></pre><p class="small">Le nom décrit une implémentation. Si on remplace <span class="mono">requests</span> par <span class="mono">httpx</span>, il devient faux.</p></div>
+  <div class="card"><h3>Nom stable</h3><pre class="code"><code>fetch_weather_data</code></pre><p class="small">Le nom décrit le rôle dans le pipeline, pas la ligne de code utilisée.</p></div>
+</div>
+<div class="quote">Le nom d’une tâche doit décrire son rôle dans le pipeline, pas uniquement son implémentation.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">4 — Exemples</div>
+<h2>Mauvais, correct, très bon nommage</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Pipeline météo</h3><div class="compare" style="grid-template-columns:1fr;gap:10px;">
+    <div><div class="tag red">Mauvais</div><p class="small mono">task_a, task_b, task_c, task_d</p></div>
+    <div><div class="tag orange">Meilleur</div><p class="small mono">fetch_weather_data<br>validate_weather_data<br>transform_weather_data<br>load_weather_data</p></div>
+    <div><div class="tag green">Très bon</div><p class="small mono">fetch_openmeteo_city_forecasts<br>validate_weather_payload_completeness<br>transform_weather_payload_to_records<br>load_weather_records_to_postgres<br>write_weather_ingestion_log</p></div>
+  </div></div>
+  <div class="card"><h3>Pipeline taux de change</h3><div class="compare" style="grid-template-columns:1fr;gap:10px;">
+    <div><div class="tag red">Mauvais</div><p class="small mono">get_data, clean, insert, alert</p></div>
+    <div><div class="tag orange">Correct</div><p class="small mono">fetch_exchange_rates<br>transform_exchange_rates<br>load_exchange_rates<br>check_rate_variation<br>send_variation_alert</p></div>
+    <div><div class="tag green">Très bon</div><p class="small mono">fetch_frankfurter_exchange_rates<br>validate_exchange_rate_response<br>transform_rates_to_daily_records<br>load_rates_to_postgres<br>check_currency_variation_threshold<br>notify_rate_variation_alert</p></div>
+  </div></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">5 — Règles concrètes</div>
+<h2>Formules de nommage et checklist</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Formule 1</h3><p class="lead"><span class="mono">verbe + objet + contexte optionnel</span></p><ul class="bullet-list "><li><span class="mono">fetch_weather_data</span></li><li><span class="mono">validate_weather_response</span></li><li><span class="mono">load_weather_to_postgres</span></li><li><span class="mono">notify_api_failure</span></li></ul></div>
+  <div class="card"><h3>Formule 2</h3><p class="lead"><span class="mono">action + source/cible + donnée</span></p><ul class="bullet-list "><li><span class="mono">extract_openmeteo_data</span></li><li><span class="mono">load_postgres_weather_records</span></li><li><span class="mono">generate_weather_quality_report</span></li></ul></div>
+</div>
+<div class="card"><h3>Checklist</h3><ul class="bullet-list good-list"><li>Que fait la tâche ?</li><li>Sur quelle donnée agit-elle ?</li><li>Est-ce une extraction, une transformation, un chargement ou un contrôle ?</li><li>Où se situe-t-elle dans le pipeline ?</li><li>Le nom restera-t-il valable si l’implémentation change légèrement ?</li></ul></div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">6 — Granularité</div>
+<h2>Étapes métier vs étapes techniques</h2>
+
+<div class="quote">Airflow sert à orchestrer des étapes significatives, pas à afficher chaque ligne de code dans le graphe.</div>
+<div class="grid-2">
+  <div class="card"><h3>Étape métier / pipeline</h3><p class="small">Action compréhensible dans le processus global, avec une intention fonctionnelle ou opérationnelle.</p><ul class="bullet-list good-list"><li>récupérer les données météo ;</li><li>vérifier la complétude des données ;</li><li>transformer les données pour analyse ;</li><li>charger les données en base ;</li><li>détecter une anomalie ;</li><li>envoyer une alerte ;</li><li>écrire une trace d’ingestion.</li></ul></div>
+  <div class="card"><h3>Détail technique</h3><p class="small">Opération nécessaire à l’exécution du code, mais généralement trop fine pour apparaître comme tâche Airflow.</p><ul class="bullet-list danger-list"><li>ouvrir une connexion HTTP ;</li><li>convertir une chaîne en date ;</li><li>renommer une clé JSON ;</li><li>parser une réponse JSON ;</li><li>initialiser une variable ;</li><li>créer une liste vide ;</li><li>convertir des degrés en flottant.</li></ul></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">7 — Décider une tâche</div>
+<h2>Quand créer une tâche Airflow séparée ?</h2>
+
+<div class="grid-3">
+  <div class="card"><h3>Supervision</h3><p class="small">Elle doit être observée séparément.</p><p class="mono">validate_weather_data</p></div>
+  <div class="card"><h3>Cause d’échec différente</h3><p class="small">API indisponible vs base indisponible : deux problèmes différents.</p><p class="mono">fetch_weather_data<br>load_weather_to_postgres</p></div>
+  <div class="card"><h3>Relance indépendante</h3><p class="small">Si le chargement échoue, on peut vouloir relancer uniquement le chargement.</p></div>
+</div>
+<div class="grid-2">
+  <div class="card"><h3>Frontière logique</h3><div class="kicker-row"><span class="pill">extraction</span><span class="pill">validation</span><span class="pill">transformation</span><span class="pill">chargement</span><span class="pill">notification</span><span class="pill">archivage</span></div></div>
+  <div class="card"><h3>Stratégie d’échec différente</h3><ul class="bullet-list warn-list"><li>appel API : retry pertinent ;</li><li>validation qualité : retry souvent inutile ;</li><li>chargement PostgreSQL : retry parfois pertinent ;</li><li>erreur de schéma : retry inutile.</li></ul></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">8 — Ce qui reste dans le code</div>
+<h2>Ce qui ne mérite généralement pas une tâche séparée</h2>
+
+<div class="grid-3">
+  <div class="card"><h3>Micro-transformations</h3><ul class="bullet-list danger-list"><li><span class="mono">rename_temperature_field</span></li><li><span class="mono">convert_date_string</span></li><li><span class="mono">strip_city_name</span></li><li><span class="mono">round_temperature</span></li></ul><p class="small">À garder dans <span class="mono">transform_weather_records</span>.</p></div>
+  <div class="card"><h3>Détails d’implémentation</h3><ul class="bullet-list danger-list"><li><span class="mono">open_database_connection</span></li><li><span class="mono">close_database_connection</span></li><li><span class="mono">create_python_list</span></li><li><span class="mono">parse_json</span></li></ul><p class="small">Importants dans le code, pas forcément dans le graphe.</p></div>
+  <div class="card"><h3>Opérations trop dépendantes du code</h3><pre class="code"><code>call_function_x</code></pre><p class="small">Nommer selon le rôle : <span class="mono">fetch_weather_data</span>.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">9 — Exemple complet</div>
+<h2>Mauvais découpage : tâche fourre-tout</h2>
+
+<div class="card"><h3>Cas métier</h3><p class="text">Récupérer chaque jour la météo de plusieurs villes via Open-Meteo, contrôler les données et charger PostgreSQL.</p></div>
+<div class="grid-2">
+  <div class="card"><h3>Découpage</h3><pre class="code"><code>run_weather_pipeline</code></pre><p class="small">Cette tâche fait tout : appel API, validation, transformation, chargement, logs, alertes.</p></div>
+  <div class="card"><h3>Problèmes</h3><ul class="bullet-list danger-list"><li>impossible de voir quelle étape échoue ;</li><li>impossible de relancer proprement une seule partie ;</li><li>logs trop mélangés ;</li><li>supervision faible ;</li><li>le DAG n’apporte presque rien par rapport à un script classique.</li></ul></div>
+</div>
+<div class="quote">Ce découpage revient à utiliser Airflow comme un simple lanceur de script.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">9 — Exemple complet</div>
+<h2>Découpage trop fin : Airflow ne doit pas visualiser chaque ligne de code</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Exemple trop fin</h3><pre class="code"><code>create_city_list
+open_http_connection
+fetch_paris_weather
+parse_paris_json
+rename_paris_fields
+fetch_lyon_weather
+parse_lyon_json
+rename_lyon_fields
+convert_temperature
+convert_wind_speed
+open_db_connection
+insert_row_1
+insert_row_2
+close_db_connection</code></pre></div>
+  <div class="card"><h3>Problèmes</h3><ul class="bullet-list danger-list"><li>graphe illisible ;</li><li>trop de tâches ;</li><li>maintenance pénible ;</li><li>beaucoup d’états à surveiller ;</li><li>complexité artificielle ;</li><li>faible valeur pédagogique et opérationnelle.</li></ul><p class="small">Ce découpage transforme Airflow en outil de visualisation du code interne.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">9 — Exemple complet</div>
+<h2>Découpage équilibré</h2>
+
+<div class="card"><pre class="code"><code>fetch_weather_data
+&gt;&gt; validate_weather_payload
+&gt;&gt; transform_weather_records
+&gt;&gt; load_weather_to_postgres
+&gt;&gt; write_ingestion_log</code></pre></div>
+<div class="flow-row">
+  <div class="flow-item"><div class="tag">Fetch</div><p class="small">Récupérer</p></div>
+  <div class="flow-item"><div class="tag">Validate</div><p class="small">Contrôler</p></div>
+  <div class="flow-item"><div class="tag">Transform</div><p class="small">Transformer</p></div>
+  <div class="flow-item"><div class="tag">Load</div><p class="small">Charger</p></div>
+  <div class="flow-item"><div class="tag">Log</div><p class="small">Tracer</p></div>
+</div>
+<div class="quote">Le graphe reste lisible, les étapes critiques sont visibles, les erreurs sont plus faciles à diagnostiquer.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">10 — Parallélisation</div>
+<h2>Découper par ville seulement si cela apporte de la supervision</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Exemple</h3><pre class="code"><code>fetch_weather_paris
+fetch_weather_lyon
+fetch_weather_marseille
+        ↓
+validate_weather_payloads
+        ↓
+transform_weather_records
+        ↓
+load_weather_to_postgres
+        ↓
+write_ingestion_log</code></pre></div>
+  <div class="card"><h3>Intérêt</h3><ul class="bullet-list good-list"><li>les appels API sont indépendants ;</li><li>un échec sur une ville peut être identifié ;</li><li>le graphe montre mieux le traitement multi-villes.</li></ul><h3>Limite</h3><p class="small">Pour 3 villes, c’est lisible. Pour 300 villes, ce serait peut-être trop lourd, sauf mécanisme adapté comme le mapping dynamique.</p></div>
+</div>
+<div class="quote">La granularité dépend du besoin de supervision, de reprise et de lisibilité.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">11 — Exercice tableau</div>
+<h2>Étape métier ou détail technique ?</h2>
+
+<table>
+  <thead><tr><th>Opération</th><th>Étape métier ou technique ?</th><th>Tâche Airflow séparée ?</th></tr></thead>
+  <tbody>
+    <tr><td>Appeler l’API Open-Meteo</td><td>Métier / pipeline</td><td class="ok">Oui</td></tr>
+    <tr><td>Parser le JSON avec <span class="mono">.json()</span></td><td>Technique</td><td class="no">Non</td></tr>
+    <tr><td>Vérifier que chaque ville a une température</td><td>Métier / qualité</td><td class="ok">Oui</td></tr>
+    <tr><td>Renommer <span class="mono">temperature_2m</span> en <span class="mono">temperature</span></td><td>Technique</td><td class="no">Non</td></tr>
+    <tr><td>Transformer la réponse en lignes tabulaires</td><td>Métier / pipeline</td><td class="ok">Oui</td></tr>
+    <tr><td>Convertir une date ISO</td><td>Technique</td><td class="no">Non</td></tr>
+    <tr><td>Charger les lignes dans PostgreSQL</td><td>Métier / pipeline</td><td class="ok">Oui</td></tr>
+    <tr><td>Envoyer une alerte si données invalides</td><td>Métier / exploitation</td><td class="ok">Oui</td></tr>
+  </tbody>
+</table>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">12 — Architecture interne</div>
+<h2>Airflow est une plateforme, pas seulement une librairie Python</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Airflow permet de</h3><ul class="bullet-list good-list"><li>lire les workflows ;</li><li>planifier les exécutions ;</li><li>lancer les tâches ;</li><li>stocker les états ;</li><li>afficher les résultats ;</li><li>permettre la supervision.</li></ul></div>
+  <div class="card"><h3>Composants principaux</h3><ul class="bullet-list "><li>fichiers DAG ;</li><li>scheduler ;</li><li>executor ;</li><li>workers ou processus d’exécution ;</li><li>metadata database ;</li><li>webserver ;</li><li>interface utilisateur ;</li><li>logs.</li></ul></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">13 — Vue d’ensemble</div>
+<h2>Les composants Airflow travaillent ensemble</h2>
+
+<div class="diagram">
+  <svg viewBox="0 0 1000 320" width="100%" aria-label="Architecture Airflow simplifiée">
+    <g font-family="Inter, sans-serif" font-size="20" font-weight="700" fill="#f5f7fb">
+      <rect x="60" y="36" width="190" height="62" rx="18" fill="#123150" stroke="rgba(255,255,255,.18)"/><text x="95" y="74">Fichiers DAG</text>
+      <rect x="315" y="36" width="190" height="62" rx="18" fill="#123150" stroke="rgba(255,255,255,.18)"/><text x="362" y="74">Scheduler</text>
+      <rect x="570" y="36" width="190" height="62" rx="18" fill="#123150" stroke="rgba(255,255,255,.18)"/><text x="622" y="74">Executor</text>
+      <rect x="810" y="36" width="140" height="62" rx="18" fill="#123150" stroke="rgba(255,255,255,.18)"/><text x="846" y="74">Workers</text>
+      <rect x="315" y="200" width="190" height="62" rx="18" fill="#163a35" stroke="rgba(94,228,168,.35)"/><text x="348" y="238">Metadata DB</text>
+      <rect x="570" y="200" width="190" height="62" rx="18" fill="#123150" stroke="rgba(255,255,255,.18)"/><text x="608" y="238">Webserver UI</text>
+      <path d="M250 67 H315" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M505 67 H570" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M760 67 H810" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M410 98 V200" stroke="#5ee4a8" stroke-width="5" stroke-linecap="round"/>
+      <path d="M665 98 V200" stroke="#5ee4a8" stroke-width="5" stroke-linecap="round"/>
+      <path d="M505 231 H570" stroke="#5ee4a8" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </svg>
+</div>
+<div class="quote">Le scheduler planifie, l’executor lance ou délègue, les workers exécutent, la metadata DB mémorise, l’UI expose.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">14 — Les fichiers DAG</div>
+<h2>Les fichiers DAG décrivent les workflows</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Ils contiennent généralement</h3><ul class="bullet-list "><li>la définition du DAG ;</li><li>les paramètres du DAG ;</li><li>les tâches ;</li><li>les dépendances ;</li><li>la planification ;</li><li>parfois les appels vers du code métier.</li></ul></div>
+  <div class="card"><h3>Structure plus propre</h3><pre class="code"><code>dags/
+  openmeteo_daily_weather_ingestion.py
+include/
+  weather_api.py
+  weather_transform.py
+  postgres_loader.py</code></pre><p class="small">Le fichier DAG décrit l’orchestration. La logique métier peut être placée dans des modules séparés.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">14 — Exemple DAG</div>
+<h2>Exemple simplifié de fichier DAG</h2>
+<pre class="code"><code>from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+
+def fetch_weather():
+    print(&quot;Fetching weather data&quot;)
+
+def load_weather():
+    print(&quot;Loading weather data&quot;)
+
+with DAG(
+    dag_id=&quot;openmeteo_daily_weather_ingestion&quot;,
+    start_date=datetime(2026, 1, 1),
+    schedule=&quot;@daily&quot;,
+    catchup=False,
+) as dag:
+    fetch_task = PythonOperator(
+        task_id=&quot;fetch_weather_data&quot;,
+        python_callable=fetch_weather,
+    )
+
+    load_task = PythonOperator(
+        task_id=&quot;load_weather_to_postgres&quot;,
+        python_callable=load_weather,
+    )
+
+    fetch_task &gt;&gt; load_task</code></pre><div class="quote">Le fichier DAG ne devrait pas devenir un énorme fichier contenant toute la logique métier.</div>
+</section>
+<section class="slide ">
+<div class="eyebrow">15 — Scheduler</div>
+<h2>Le scheduler décide quoi lancer et quand</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Rôle</h3><ul class="bullet-list good-list"><li>quels DAGs doivent être exécutés ;</li><li>quand ils doivent être exécutés ;</li><li>quelles tâches sont prêtes ;</li><li>quelles dépendances sont satisfaites ;</li><li>quelles task instances envoyer à l’executor.</li></ul></div>
+  <div class="card"><h3>Exemple</h3><p class="text">Un DAG est planifié tous les jours à 8h.</p><ul class="bullet-list "><li>le DAG est-il actif ?</li><li>le planning indique-t-il qu’un nouveau run doit être créé ?</li><li>les dépendances sont-elles respectées ?</li><li>quelles tâches peuvent démarrer ?</li><li>quelles tâches doivent attendre ?</li></ul></div>
+</div>
+<div class="quote">Le scheduler est le chef d’orchestre : il décide quoi lancer et quand, mais il ne joue pas lui-même tous les instruments.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">16 — Executor</div>
+<h2>L’executor détermine comment les tâches sont exécutées</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Idée centrale</h3><p class="text">Le scheduler décide qu’une tâche doit être lancée. L’executor se charge de son exécution concrète, directement ou en délégant.</p></div>
+  <div class="card"><h3>Modes possibles</h3><ul class="bullet-list "><li>locale ;</li><li>parallèle sur la même machine ;</li><li>distribuée sur plusieurs workers ;</li><li>exécutée dans des conteneurs ou environnements séparés.</li></ul></div>
+</div>
+<div class="grid-4">
+  <div class="card"><h3>SequentialExecutor</h3><p class="small">Simple, pédagogique, exécution séquentielle.</p></div>
+  <div class="card"><h3>LocalExecutor</h3><p class="small">Parallélisme sur la même machine.</p></div>
+  <div class="card"><h3>CeleryExecutor</h3><p class="small">Workers distribués.</p></div>
+  <div class="card"><h3>KubernetesExecutor</h3><p class="small">Exécution plus industrielle en pods.</p></div>
+</div>
+<div class="quote">Le scheduler planifie. L’executor exécute ou délègue l’exécution.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">17 — Workers</div>
+<h2>Les workers réalisent concrètement le travail</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Configuration simple</h3><p class="text">Le worker peut être sur la même machine qu’Airflow.</p></div>
+  <div class="card"><h3>Configuration avancée</h3><p class="text">Plusieurs workers peuvent exécuter plusieurs tâches en parallèle.</p></div>
+</div>
+<div class="card"><pre class="code"><code>Scheduler
+   ↓
+Executor
+   ↓
+Worker 1 → fetch_weather_data
+Worker 2 → transform_weather_records
+Worker 3 → load_weather_to_postgres</code></pre></div>
+<div class="quote">Les workers exécutent réellement le code demandé par les tâches.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">18 — Metadata DB</div>
+<h2>La metadata database est la mémoire opérationnelle d’Airflow</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Elle stocke</h3><ul class="bullet-list good-list"><li>les DAG Runs ;</li><li>les Task Instances ;</li><li>les états des tâches ;</li><li>les dates d’exécution ;</li><li>l’historique ;</li><li>les connexions ;</li><li>les variables ;</li><li>les informations utilisées par l’UI.</li></ul></div>
+  <div class="card"><h3>Exemples d’états</h3><div class="kicker-row"><span class="pill">success</span><span class="pill">failed</span><span class="pill">running</span><span class="pill">queued</span><span class="pill">skipped</span><span class="pill">upstream_failed</span></div><p class="small">Sans metadata DB, Airflow ne saurait pas ce qui a été lancé, réussi, échoué ou doit être affiché.</p></div>
+</div>
+<div class="quote">Metadata DB Airflow ≠ base métier du pipeline.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">18 — Metadata DB</div>
+<h2>Ne pas confondre mémoire Airflow et données métier</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Metadata DB Airflow</h3><ul class="bullet-list good-list"><li>état des DAGs ;</li><li>état des tâches ;</li><li>historique des runs ;</li><li>variables et connexions ;</li><li>informations pour l’UI.</li></ul></div>
+  <div class="card"><h3>Base PostgreSQL métier</h3><ul class="bullet-list "><li>données météo ;</li><li>taux de change ;</li><li>données transformées ;</li><li>tables analytiques ;</li><li>données du projet final.</li></ul></div>
+</div>
+<div class="quote">Airflow orchestre le chargement. PostgreSQL stocke les données métier.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">19 — Webserver et UI</div>
+<h2>L’interface sert à piloter et diagnostiquer</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>L’UI permet de</h3><ul class="bullet-list good-list"><li>voir les DAGs disponibles ;</li><li>activer ou désactiver un DAG ;</li><li>lancer manuellement un DAG ;</li><li>consulter les DAG Runs ;</li><li>voir les tâches ;</li><li>lire les logs ;</li><li>comprendre les dépendances ;</li><li>relancer une tâche ;</li><li>analyser les échecs.</li></ul></div>
+  <div class="card"><h3>Limite</h3><p class="text">L’UI ne remplace pas le code. Elle permet de superviser le code orchestré.</p><div class="quote" style="font-size:21px;">L’interface Airflow sert à piloter et diagnostiquer les exécutions, pas à écrire la logique métier.</div></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">20 — Logs</div>
+<h2>Un pipeline sans logs exploitables est difficile à maintenir</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Les logs doivent expliquer</h3><ul class="bullet-list good-list"><li>ce que la tâche a fait ;</li><li>à quel moment elle a échoué ;</li><li>quelle erreur a été levée ;</li><li>quelles données ou paramètres ont été utilisés ;</li><li>si une étape a été atteinte ou non.</li></ul></div>
+  <div class="card"><h3>Logs utiles vs inutiles</h3><div class="grid-2" style="gap:12px;"><div><pre class="code"><code>Starting Open-Meteo API extraction
+Cities: Paris, Lyon, Marseille
+API response received for Paris
+Validation failed: missing temperature for Lyon</code></pre></div><div><pre class="code"><code>start
+ok
+done
+error</code></pre></div></div></div>
+</div>
+<div class="quote">Les logs doivent être suffisamment précis pour diagnostiquer un problème.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">21 — Cycle d’exécution</div>
+<h2>Ce qui se passe quand un DAG est exécuté — étapes 1 à 4</h2>
+
+<div class="timeline" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+  <div class="card"><h3>1. Fichier DAG présent</h3><p class="small mono">dags/openmeteo_daily_weather_ingestion.py</p></div>
+  <div class="card"><h3>2. Airflow lit le fichier</h3><p class="small">Il parse le nom du DAG, les tâches, les dépendances, le schedule et les paramètres.</p></div>
+  <div class="card"><h3>3. Le scheduler crée un DAG Run</h3><p class="small">Exemple : exécution du 2026-04-27.</p></div>
+  <div class="card"><h3>4. Airflow crée des Task Instances</h3><p class="small">Chaque tâche existe pour ce run précis.</p></div>
+</div>
+<div class="quote">Un DAG Run représente une instance d’exécution du DAG dans le temps.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">21 — Cycle d’exécution</div>
+<h2>Ce qui se passe quand un DAG est exécuté — étapes 5 à 8</h2>
+
+<div class="timeline" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+  <div class="card"><h3>5. Tâches prêtes envoyées à l’executor</h3><p class="small">Si une tâche n’a pas de dépendance bloquante, elle peut partir.</p></div>
+  <div class="card"><h3>6. Workers exécutent</h3><p class="small">La tâche peut réussir, échouer, être relancée, ignorée ou attendre une ressource.</p></div>
+  <div class="card"><h3>7. États enregistrés</h3><p class="small mono">fetch: success<br>validate: success<br>load: failed</p></div>
+  <div class="card"><h3>8. UI affiche</h3><p class="small">Graphe, états, logs, erreurs et historique.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">22 — Concepts fondamentaux</div>
+<h2>DAG, DAG Run, Task et Task Instance</h2>
+
+<div class="grid-4">
+  <div class="card"><h3>DAG</h3><p class="small">Modèle du workflow : tâches, dépendances, planning.</p><p class="mono">openmeteo_daily_weather_ingestion</p></div>
+  <div class="card"><h3>DAG Run</h3><p class="small">Exécution particulière du DAG dans le temps.</p><p class="mono">Run du 2026-04-27</p></div>
+  <div class="card"><h3>Task</h3><p class="small">Étape définie dans le DAG.</p><p class="mono">fetch_weather_data</p></div>
+  <div class="card"><h3>Task Instance</h3><p class="small">Exécution d’une tâche pour un DAG Run donné.</p><p class="mono">fetch_weather_data — 2026-04-27</p></div>
+</div>
+<div class="quote">DAG et task décrivent le workflow. DAG Run et task instance décrivent son exécution réelle.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">23 — Exemple Open-Meteo</div>
+<h2>Une erreur concerne une instance précise, pas forcément la tâche pour toujours</h2>
+
+<div class="grid-3">
+  <div class="card"><h3>DAG</h3><p class="mono small">openmeteo_daily_weather_ingestion</p></div>
+  <div class="card"><h3>Tâches</h3><p class="mono small">fetch_weather_data<br>validate_weather_payload<br>transform_weather_records<br>load_weather_to_postgres<br>write_ingestion_log</p></div>
+  <div class="card"><h3>Runs</h3><p class="mono small">Run du 2026-04-27<br>Run du 2026-04-28<br>Run du 2026-04-29</p></div>
+</div>
+<div class="card"><h3>Task instances pour le run du 2026-04-27</h3><p class="mono small">fetch_weather_data — 2026-04-27<br>validate_weather_payload — 2026-04-27<br>transform_weather_records — 2026-04-27<br>load_weather_to_postgres — 2026-04-27<br>write_ingestion_log — 2026-04-27</p></div>
+<div class="quote">Si <span class="mono">load_weather_to_postgres</span> échoue le 2026-04-27, cela veut dire que cette task instance précise a échoué pour ce run précis.</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">24 — Architecture tableau</div>
+<h2>Architecture interne simplifiée à dessiner</h2>
+
+<div class="card"><pre class="code"><code>┌──────────────────────┐
+│ Fichiers DAG Python  │
+└───────────┬──────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Scheduler            │
+│ décide quoi lancer   │
+└───────────┬──────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Executor             │
+│ lance ou délègue     │
+└───────────┬──────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Workers              │
+│ exécutent les tâches │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ Metadata DB          │
+│ états, runs, history │
+└───────────▲──────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Webserver UI         │
+│ supervision / logs   │
+└──────────────────────┘</code></pre></div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">25 — Erreurs fréquentes</div>
+<h2>Erreurs à corriger chez les étudiants</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Confusions sur le rôle d’Airflow</h3><ul class="bullet-list danger-list"><li>Croire qu’Airflow stocke les données métier.</li><li>Croire qu’Airflow transforme automatiquement les données.</li></ul><p class="small">Airflow orchestre le chargement et lance du code, mais ne remplace ni PostgreSQL, ni Python, ni SQL.</p></div>
+  <div class="card"><h3>Confusions sur les tâches</h3><ul class="bullet-list danger-list"><li>Mettre toute la logique dans une seule tâche.</li><li>Découper chaque ligne de code en tâche.</li><li>Confondre tâche Airflow et fonction Python.</li></ul><p class="small">La fonction est du code. La tâche est une unité orchestrée, suivie, historisée et supervisée.</p></div>
+</div>
+
+</section>
+<section class="slide ">
+<div class="eyebrow">26 — Synthèse</div>
+<h2>Ce qu’est un bon DAG Airflow</h2>
+
+<div class="grid-2">
+  <div class="card"><h3>Un bon DAG doit être</h3><ul class="bullet-list good-list"><li>lisible ;</li><li>correctement nommé ;</li><li>découpé selon des étapes significatives ;</li><li>compréhensible depuis l’UI ;</li><li>capable de montrer clairement où se situe un échec ;</li><li>assez détaillé pour superviser ;</li><li>pas trop détaillé pour rester maintenable.</li></ul></div>
+  <div class="card"><h3>Airflow repose sur</h3><ul class="bullet-list "><li>DAG files : décrivent les workflows ;</li><li>Scheduler : décide quand lancer ;</li><li>Executor : lance ou délègue ;</li><li>Workers : exécutent les tâches ;</li><li>Metadata DB : conserve les états ;</li><li>Webserver : affiche les informations ;</li><li>Logs : permettent de diagnostiquer.</li></ul></div>
+</div>
+<div class="quote">Airflow sert à rendre un pipeline observable, structuré, relançable et maintenable. Le code exécute le traitement ; Airflow organise son exécution.</div>
+
+</section>
+  </main>
+</body>
+</html>

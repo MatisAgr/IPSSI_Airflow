@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airflow — Jour 3</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2a;
+      --panel: #10243b;
+      --panel-2: #132b45;
+      --text: #f5f7fb;
+      --muted: #b8c7db;
+      --blue: #4da3ff;
+      --cyan: #62d0ff;
+      --green: #5ee4a8;
+      --orange: #ffb55e;
+      --red: #ff7b7b;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { counter-reset: slide; }
+    .deck { width: 100%; }
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      padding: 64px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(98,208,255,.10), transparent 30%),
+        radial-gradient(circle at top left, rgba(77,163,255,.10), transparent 28%),
+        linear-gradient(180deg, #091321 0%, #07111f 100%);
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .slide::after {
+      counter-increment: slide;
+      content: counter(slide, decimal-leading-zero);
+      position: absolute;
+      right: 28px;
+      bottom: 20px;
+      font-size: 14px;
+      letter-spacing: .18em;
+      color: rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p, ul { margin: 0; }
+    h1 {
+      font-size: 58px;
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      max-width: 980px;
+    }
+    h2 {
+      font-size: 42px;
+      line-height: 1.08;
+      letter-spacing: -.025em;
+      max-width: 1080px;
+    }
+    h3 {
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .lead {
+      font-size: 25px;
+      line-height: 1.38;
+      color: var(--muted);
+      max-width: 1040px;
+    }
+    .text {
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .small {
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bullet-list li {
+      position: relative;
+      padding-left: 22px;
+      font-size: 21px;
+      line-height: 1.42;
+      color: var(--muted);
+    }
+    .bullet-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 0 4px rgba(98,208,255,.12);
+    }
+    .good-list li::before { background: var(--green); box-shadow: 0 0 0 4px rgba(94,228,168,.12); }
+    .danger-list li::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255,123,123,.12); }
+    .warn-list li::before { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,181,94,.14); }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: 28px;
+      align-items: center;
+      flex: 1;
+    }
+    .kicker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .accent { color: var(--cyan); }
+    .quote {
+      padding: 22px 24px;
+      border-left: 4px solid var(--cyan);
+      background: rgba(98,208,255,.08);
+      border-radius: 16px;
+      font-size: 24px;
+      line-height: 1.38;
+      color: var(--text);
+      max-width: 1080px;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .metric {
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+    }
+    .metric .value {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .metric .label {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
+    .timeline .step {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 150px;
+    }
+    .step .num {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: .14em;
+      margin-bottom: 12px;
+    }
+    .diagram {
+      padding: 24px;
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .tp-banner {
+      display: inline-flex;
+      align-self: flex-start;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(94,228,168,.12);
+      border: 1px solid rgba(94,228,168,.35);
+      color: var(--green);
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: 15px;
+    }
+    .tp-layout {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .checklist li {
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1.4;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .checklist li .n {
+      flex: 0 0 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(98,208,255,.15);
+      border: 1px solid rgba(98,208,255,.35);
+      color: var(--cyan);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      margin-top: 2px;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95em;
+      color: var(--text);
+    }
+    .flow-row {
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:16px;
+      width:100%;
+    }
+    .flow-item {
+      padding:20px;
+      border-radius:22px;
+      background: rgba(255,255,255,.04);
+      border:1px solid var(--border);
+      min-height:120px;
+    }
+    .flow-item .tag {
+      font-size:14px;
+      font-weight:800;
+      color:var(--cyan);
+      letter-spacing:.12em;
+      margin-bottom:10px;
+      text-transform:uppercase;
+    }
+    @media print {
+      @page { size: A4 landscape; margin: 0; }
+      html, body { background: #07111f; }
+      .slide {
+        min-height: 100vh;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+
+    <section class="slide">
+      <div class="eyebrow">Master 2 — Apache Airflow</div>
+      <div class="hero">
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <h1>Jour 3 — Théorie de la <span class="accent">robustesse</span>, du monitoring et de l’industrialisation</h1>
+          <p class="lead">Comprendre ce qui rend un pipeline exploitable dans la durée : fiabilité, idempotence, contrôle qualité, supervision, branchement conditionnel et structuration propre d’un projet Airflow.</p>
+          <div class="kicker-row">
+            <span class="pill">Retry</span>
+            <span class="pill">Timeout</span>
+            <span class="pill">Idempotence</span>
+            <span class="pill">Qualité</span>
+            <span class="pill">Monitoring</span>
+            <span class="pill">Branching</span>
+          </div>
+        </div>
+        <div class="card" style="gap:18px;">
+          <h3>Fil directeur</h3>
+          <p class="text">Un pipeline n’a pas de valeur seulement parce qu’il exécute des tâches. Il doit aussi rester cohérent lorsqu’il échoue, lorsqu’il est relancé, lorsqu’il traite une donnée imparfaite et lorsqu’il est exploité par d’autres personnes.</p>
+          <div class="quote" style="font-size:22px;">Un workflow fiable ne réussit pas seulement une fois : il reste lisible, sûr et exploitable dans le temps.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Objectifs</div>
+      <h2>Ce qui doit être acquis à la fin du jour 3</h2>
+      <div class="metric-row">
+        <div class="metric"><div class="value">01</div><div class="label">Distinguer retry, rerun, timeout, échec temporaire et échec structurel</div></div>
+        <div class="metric"><div class="value">02</div><div class="label">Comprendre pourquoi l’idempotence est centrale dans un DAG</div></div>
+        <div class="metric"><div class="value">03</div><div class="label">Mettre en place une logique de contrôle qualité et de monitoring</div></div>
+        <div class="metric"><div class="value">04</div><div class="label">Introduire branchement conditionnel et bonnes pratiques de structuration</div></div>
+      </div>
+      <div class="timeline">
+        <div class="step"><div class="num">MATIN</div><h3>Fiabilité</h3><p class="small">Retry, delay, timeout, rerun, idempotence et cohérence des traitements.</p></div>
+        <div class="step"><div class="num">MATIN</div><h3>Qualité</h3><p class="small">Complétude, unicité, cohérence, fraîcheur et distinction entre erreurs.</p></div>
+        <div class="step"><div class="num">FIN DE MATINÉE</div><h3>TP 3A</h3><p class="small">Ajouter robustesse, contrôle qualité et chemin d’échec lisible.</p></div>
+        <div class="step"><div class="num">APRÈS-MIDI</div><h3>Comportement</h3><p class="small">Branching, chemin nominal, alerte, rejet et logique conditionnelle.</p></div>
+        <div class="step"><div class="num">FIN DE JOURNÉE</div><h3>TP 3B</h3><p class="small">Structurer un pipeline plus lisible, plus maintenable et plus réutilisable.</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Fiabilité</div>
+      <h2>Un workflow robuste ne se limite pas à “ça passe une fois”</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ce qu’un workflow fiable doit supporter</h3>
+          <ul class="bullet-list good-list">
+            <li>un échec ponctuel sur une dépendance externe ;</li>
+            <li>une relance automatique d’une tâche ;</li>
+            <li>une réexécution d’un run déjà identifié ;</li>
+            <li>une lecture claire de ce qui a été fait ;</li>
+            <li>une cohérence de bout en bout entre extraction, transformation et chargement.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Ce qu’il faut éviter</h3>
+          <ul class="bullet-list danger-list">
+            <li>un succès technique qui masque un résultat incomplet ;</li>
+            <li>des doublons créés par un rerun mal pensé ;</li>
+            <li>une tâche qui écrit partiellement puis laisse la cible dans un état ambigu ;</li>
+            <li>une relance qui reproduit la même erreur sans réflexion ;</li>
+            <li>un pipeline dont on ne peut pas expliquer le résultat produit.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">La robustesse ne concerne pas seulement la tâche isolée. Elle concerne aussi la cohérence logique du pipeline complet.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Incidents temporaires</div>
+      <h2>Retry, retry delay et timeout</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Retry</h3>
+          <p class="text">Nouvelle tentative automatique après un échec.</p>
+          <ul class="bullet-list">
+            <li>incident réseau ponctuel ;</li>
+            <li>API momentanément indisponible ;</li>
+            <li>verrou temporaire ;</li>
+            <li>fluctuation courte d’un système externe.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Retry delay</h3>
+          <p class="text">Délai entre deux tentatives successives.</p>
+          <ul class="bullet-list">
+            <li>évite de répéter immédiatement le même échec ;</li>
+            <li>laisse du temps à la ressource externe pour revenir ;</li>
+            <li>stabilise les comportements sur incident passager.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Timeout</h3>
+          <p class="text">Limite la durée d’une tâche pour éviter l’attente infinie.</p>
+          <ul class="bullet-list">
+            <li>appel API bloqué ;</li>
+            <li>requête SQL interminable ;</li>
+            <li>traitement figé ;</li>
+            <li>dépendance externe lente ou cassée.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Le retry aide à gérer l’instable. Le timeout évite qu’une tâche attende sans fin. Aucun des deux ne corrige une mauvaise conception.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Diagnostic</div>
+      <h2>Échec temporaire, échec structurel, retry et rerun</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Échec temporaire</h3>
+          <ul class="bullet-list good-list">
+            <li>API momentanément indisponible ;</li>
+            <li>latence réseau ;</li>
+            <li>ressource provisoirement saturée ;</li>
+            <li>erreur transitoire d’infrastructure ;</li>
+            <li>verrou temporaire.</li>
+          </ul>
+          <p class="small">Dans ces cas, retry et retry delay peuvent suffire.</p>
+        </div>
+        <div class="card">
+          <h3>Échec structurel</h3>
+          <ul class="bullet-list danger-list">
+            <li>logique métier erronée ;</li>
+            <li>schéma inattendu ;</li>
+            <li>colonne absente ;</li>
+            <li>credentials incorrects ;</li>
+            <li>bug de code ou table cible mal définie.</li>
+          </ul>
+          <p class="small">Ici, relancer plusieurs fois ne résout rien : il faut corriger la cause.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Retry</h3>
+          <p class="text">Nouvelle tentative automatique après échec.</p>
+        </div>
+        <div class="card">
+          <h3>Rerun</h3>
+          <p class="text">Réexécution volontaire ou technique d’une tâche ou d’un run déjà exécuté.</p>
+          <ul class="bullet-list warn-list">
+            <li>risque de doublons ;</li>
+            <li>second chargement des mêmes lignes ;</li>
+            <li>écrasement incohérent ;</li>
+            <li>traçabilité confuse si la stratégie n’est pas claire.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Idempotence</div>
+      <h2>Exécuter plusieurs fois sans dégrader le résultat</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Définition</h3>
+          <p class="text">Une tâche idempotente produit le même résultat logique si elle est exécutée plusieurs fois dans les mêmes conditions.</p>
+          <p class="small">Cette propriété devient critique en cas de retry ou de rerun.</p>
+        </div>
+        <div class="card">
+          <h3>Pourquoi c’est central</h3>
+          <ul class="bullet-list">
+            <li>sécuriser les relances ;</li>
+            <li>éviter les doublons ;</li>
+            <li>préserver la cohérence métier ;</li>
+            <li>garder une cible compréhensible ;</li>
+            <li>faciliter l’exploitation dans la durée.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Exemples idempotents</h3>
+          <ul class="bullet-list good-list">
+            <li>réécrire proprement une partition donnée ;</li>
+            <li>faire un upsert cohérent ;</li>
+            <li>charger avec une clé unique empêchant le doublon ;</li>
+            <li>recalculer un indicateur à partir de la source.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Exemples non idempotents</h3>
+          <ul class="bullet-list danger-list">
+            <li>insérer la même donnée à chaque relance ;</li>
+            <li>accumuler des résultats sans logique de déduplication ;</li>
+            <li>écrire un résultat partiel puis le compléter ;</li>
+            <li>append systématique sans contrôle.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Un pipeline mature doit rester sûr quand on le retente et quand on le rejoue.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Intégrité</div>
+      <h2>Une tâche doit se comporter comme une transaction</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Comportement attendu</h3>
+          <ul class="bullet-list good-list">
+            <li>réussir proprement ou échouer proprement ;</li>
+            <li>ne pas laisser de résultat semi-cassé ;</li>
+            <li>ne pas rendre exploitable un chargement incomplet ;</li>
+            <li>protéger l’intégrité du pipeline global.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Pourquoi “success” ne suffit pas</h3>
+          <ul class="bullet-list danger-list">
+            <li>le résultat peut être incomplet ;</li>
+            <li>la source traitée peut être mauvaise ;</li>
+            <li>le mauvais intervalle temporel peut avoir été utilisé ;</li>
+            <li>des doublons peuvent avoir été créés ;</li>
+            <li>un traitement techniquement réussi peut être faux fonctionnellement.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Un run réussi techniquement n’est pas automatiquement un run correct du point de vue métier.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Contrôle qualité</div>
+      <h2>Avant d’accepter un run, il faut décider si la donnée est digne de confiance</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Pourquoi contrôler la donnée</h3>
+          <ul class="bullet-list">
+            <li>une API peut répondre, mais renvoyer une donnée incomplète ;</li>
+            <li>le code peut tourner, mais produire une information incohérente ;</li>
+            <li>la base peut recevoir des lignes, mais des lignes inutilisables ;</li>
+            <li>une réussite technique ne garantit pas une réussite fonctionnelle.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Question à poser à chaque run</h3>
+          <p class="lead" style="font-size:28px;max-width:none;">La donnée produite est-elle acceptable, fiable et exploitable ?</p>
+          <p class="small">Le contrôle qualité ne mesure pas seulement si le pipeline fonctionne. Il mesure si le résultat mérite d’être accepté.</p>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-item"><div class="tag">Complétude</div><p class="small">Les champs attendus sont-ils présents ?</p></div>
+        <div class="flow-item"><div class="tag">Unicité</div><p class="small">Y a-t-il des doublons interdits ?</p></div>
+        <div class="flow-item"><div class="tag">Cohérence</div><p class="small">Les valeurs ont-elles du sens ensemble ?</p></div>
+        <div class="flow-item"><div class="tag">Fraîcheur</div><p class="small">La donnée est-elle assez récente ?</p></div>
+        <div class="flow-item"><div class="tag">Structure</div><p class="small">Les champs attendus existent-ils encore ?</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Règles de validation</div>
+      <h2>Complétude, unicité, cohérence, fraîcheur et présence des champs</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Complétude</h3>
+          <ul class="bullet-list">
+            <li>la ville est renseignée ;</li>
+            <li>la date de mesure existe ;</li>
+            <li>la température n’est pas vide ;</li>
+            <li>les champs indispensables au métier sont présents.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Unicité</h3>
+          <ul class="bullet-list">
+            <li>une ligne par ville et date ;</li>
+            <li>pas deux mesures identiques pour le même intervalle ;</li>
+            <li>pas de doublon sur un identifiant de référence.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Cohérence</h3>
+          <ul class="bullet-list">
+            <li>température dans une plage raisonnable ;</li>
+            <li>précipitations non négatives ;</li>
+            <li>date compatible avec le run traité ;</li>
+            <li>valeurs compatibles entre elles.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Fraîcheur</h3>
+          <ul class="bullet-list">
+            <li>la donnée n’est pas trop ancienne ;</li>
+            <li>la dernière mesure correspond à la fréquence d’ingestion attendue.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Présence des champs attendus</h3>
+          <ul class="bullet-list">
+            <li>une clé JSON attendue n’a pas disparu ;</li>
+            <li>un bloc de réponse est toujours fourni ;</li>
+            <li>le schéma source n’a pas dérivé sans être pris en compte.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Erreurs</div>
+      <h2>Erreur technique et erreur de qualité ne désignent pas le même problème</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Erreur technique</h3>
+          <ul class="bullet-list danger-list">
+            <li>timeout ;</li>
+            <li>problème réseau ;</li>
+            <li>table inaccessible ;</li>
+            <li>erreur Python ;</li>
+            <li>SQL invalide.</li>
+          </ul>
+          <p class="small">Le pipeline n’arrive pas à exécuter une opération.</p>
+        </div>
+        <div class="card">
+          <h3>Erreur de qualité</h3>
+          <ul class="bullet-list warn-list">
+            <li>doublons ;</li>
+            <li>valeurs nulles interdites ;</li>
+            <li>date trop ancienne ;</li>
+            <li>format inattendu ;</li>
+            <li>nombre de lignes anormal.</li>
+          </ul>
+          <p class="small">Le pipeline tourne, mais la donnée obtenue n’est pas acceptable.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Que faire si la qualité échoue</h3>
+          <ul class="bullet-list">
+            <li>bloquer le chargement final ;</li>
+            <li>déclencher une branche d’alerte ;</li>
+            <li>écrire dans une table d’anomalies ;</li>
+            <li>journaliser clairement l’échec ;</li>
+            <li>marquer le run comme non exploitable.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Place du contrôle qualité</h3>
+          <ul class="bullet-list">
+            <li>après extraction ;</li>
+            <li>après transformation ;</li>
+            <li>avant chargement final ;</li>
+            <li>ou après chargement pour une vérification complémentaire.</li>
+          </ul>
+          <p class="small">La qualité n’est pas un bonus décoratif placé à la fin : elle fait partie du workflow.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Supervision</div>
+      <h2>L’UI, les logs et l’historique des runs font partie de la valeur d’Airflow</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>UI Airflow</h3>
+          <ul class="bullet-list">
+            <li>voir les DAGs ;</li>
+            <li>voir les runs ;</li>
+            <li>voir les tâches et leurs états ;</li>
+            <li>lire les logs ;</li>
+            <li>diagnostiquer plus vite.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Logs</h3>
+          <ul class="bullet-list">
+            <li>ce qu’une tâche a fait ;</li>
+            <li>avec quels paramètres ;</li>
+            <li>à quel moment ;</li>
+            <li>où elle a échoué ;</li>
+            <li>quel message d’erreur a été produit.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>États et historique</h3>
+          <ul class="bullet-list">
+            <li>tâche en attente, exécutée, ignorée ou échouée ;</li>
+            <li>lecture des dépendances amont ;</li>
+            <li>stabilité ou récurrence des incidents ;</li>
+            <li>impact d’une correction dans le temps.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Un pipeline devient réellement exploitable lorsqu’il devient observable.</div>
+    </section>
+
+    <section class="slide">
+      <div class="tp-banner">TP 3A — Fin de matinée</div>
+      <h2>Ajouter robustesse et contrôle qualité</h2>
+      <div class="tp-layout">
+        <div class="card">
+          <h3>Objectif</h3>
+          <p class="text">Faire évoluer le pipeline Open-Meteo réalisé la veille pour lui ajouter des mécanismes de fiabilité et de contrôle.</p>
+          <h3 style="margin-top:8px;">Travail demandé</h3>
+          <ul class="checklist">
+            <li><span class="n">1</span><span>Ajouter des retries au DAG ou aux tâches pertinentes.</span></li>
+            <li><span class="n">2</span><span>Ajouter un timeout sur au moins une tâche.</span></li>
+            <li><span class="n">3</span><span>Créer une tâche de contrôle qualité.</span></li>
+            <li><span class="n">4</span><span>Empêcher le chargement final si les données sont invalides.</span></li>
+            <li><span class="n">5</span><span>Prévoir une sortie d’erreur lisible.</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Consignes</h3>
+          <ul class="bullet-list">
+            <li>ne pas ajouter des retries partout sans justification ;</li>
+            <li>distinguer les échecs qui méritent un retry de ceux qui relèvent d’un problème de logique ;</li>
+            <li>choisir des contrôles qualité simples mais justifiés ;</li>
+            <li>garder un DAG lisible ;</li>
+            <li>montrer clairement le chemin nominal et le chemin d’échec.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Livrables attendus</h3>
+          <ul class="bullet-list good-list">
+            <li>DAG enrichi ;</li>
+            <li>description des contrôles qualité retenus ;</li>
+            <li>preuve de l’exécution ;</li>
+            <li>courte explication des choix de robustesse.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Workflow conditionnel</div>
+      <h2>Un DAG mature ne suit pas toujours une ligne unique</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Branchement conditionnel</h3>
+          <p class="text">Le workflow suit un chemin différent selon une condition observée pendant l’exécution.</p>
+          <ul class="bullet-list">
+            <li>si la qualité est correcte, on charge ;</li>
+            <li>sinon, on alerte ;</li>
+            <li>si aucune donnée n’est reçue, on stoppe ;</li>
+            <li>si un seuil d’erreur est dépassé, on rejette.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Logique métier</h3>
+          <ul class="bullet-list">
+            <li>le branching traduit une règle métier ou opérationnelle ;</li>
+            <li>il relie détection d’un état et comportement du workflow ;</li>
+            <li>il rend explicite la réaction du pipeline à une anomalie.</li>
+          </ul>
+          <p class="small">Le mécanisme technique n’a de sens que s’il porte une règle compréhensible.</p>
+        </div>
+      </div>
+      <div class="quote">Un bon DAG ne décrit pas seulement la réussite. Il décrit aussi le comportement en cas de problème.</div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Chemins</div>
+      <h2>Chemin nominal, chemin d’alerte et règles de déclenchement</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Chemin nominal</h3>
+          <ul class="bullet-list good-list">
+            <li>extraction ;</li>
+            <li>transformation ;</li>
+            <li>validation ;</li>
+            <li>chargement ;</li>
+            <li>fin normale.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Chemin d’alerte</h3>
+          <ul class="bullet-list warn-list">
+            <li>arrêt du chargement ;</li>
+            <li>écriture d’une anomalie ;</li>
+            <li>notification ;</li>
+            <li>orientation vers une sortie dédiée.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Règles possibles</h3>
+          <ul class="bullet-list">
+            <li>nombre de lignes reçues = 0 ;</li>
+            <li>champ obligatoire absent ;</li>
+            <li>doublons détectés ;</li>
+            <li>fraîcheur non respectée ;</li>
+            <li>taux de données manquantes au-dessus d’un seuil.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 980 220" width="100%" aria-label="Chemin nominal et chemin d'alerte">
+          <rect x="36" y="82" rx="18" ry="18" width="150" height="60" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="230" y="82" rx="18" ry="18" width="170" height="60" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="444" y="82" rx="18" ry="18" width="150" height="60" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="638" y="42" rx="18" ry="18" width="136" height="60" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="638" y="124" rx="18" ry="18" width="136" height="60" fill="#3b1b24" stroke="rgba(255,123,123,.35)"/>
+          <rect x="818" y="42" rx="18" ry="18" width="126" height="60" fill="#123150" stroke="rgba(255,255,255,.15)"/>
+          <rect x="818" y="124" rx="18" ry="18" width="126" height="60" fill="#3b1b24" stroke="rgba(255,123,123,.35)"/>
+          <path d="M186 112 H230" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M400 112 H444" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M594 112 Q620 112 638 72" stroke="#62d0ff" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M594 112 Q620 112 638 154" stroke="#ff7b7b" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M774 72 H818" stroke="#62d0ff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M774 154 H818" stroke="#ff7b7b" stroke-width="6" stroke-linecap="round"/>
+          <g fill="#f5f7fb" font-size="20" font-family="Inter, sans-serif" font-weight="700">
+            <text x="73" y="118">Extract</text>
+            <text x="261" y="118">Transform</text>
+            <text x="478" y="118">Validate</text>
+            <text x="665" y="78">Load</text>
+            <text x="657" y="160">Alert</text>
+            <text x="851" y="78">End</text>
+            <text x="848" y="160">Reject</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Structuration</div>
+      <h2>Un projet Airflow maintenable ne se résume pas à un fichier DAG qui fonctionne</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Un DAG lisible</h3>
+          <ul class="bullet-list">
+            <li>se comprend rapidement ;</li>
+            <li>montre des étapes nommées clairement ;</li>
+            <li>expose une logique visible ;</li>
+            <li>évite les croisements inutiles ;</li>
+            <li>sépare les responsabilités.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Des tâches compréhensibles</h3>
+          <ul class="bullet-list">
+            <li>une responsabilité claire ;</li>
+            <li>une sortie identifiable ;</li>
+            <li>une relance propre ;</li>
+            <li>un rôle lisible dans le workflow.</li>
+          </ul>
+          <p class="small">Le but n’est pas de créer des micro-tâches absurdes, mais des tâches nettes et maintenables.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Séparation Orchestration / logique métier</h3>
+          <p class="small">Le DAG orchestre. La logique métier détaillée vit idéalement dans des fonctions, modules ou scripts dédiés.</p>
+        </div>
+        <div class="card">
+          <h3>Séparation Orchestration / SQL</h3>
+          <p class="small">Les requêtes peuvent être isolées, nommées et organisées pour éviter un DAG illisible rempli de SQL embarqué.</p>
+        </div>
+        <div class="card">
+          <h3>Réutilisabilité</h3>
+          <p class="small">Une structure propre permet d’adapter une source, une configuration ou un workflow sans tout réécrire.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Projet maintenable</div>
+      <h2>Conventions, modularité et ouverture vers la production</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Conventions minimales</h3>
+          <ul class="bullet-list">
+            <li>noms de tâches explicites ;</li>
+            <li>conventions de dossiers ;</li>
+            <li>conventions sur les fonctions ;</li>
+            <li>conventions sur les paramètres ;</li>
+            <li>conventions de logs et de traçabilité.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Ce qu’un projet d’équipe ajouterait</h3>
+          <ul class="bullet-list">
+            <li>plus de modularité ;</li>
+            <li>plus de tests ;</li>
+            <li>séparation plus stricte des environnements ;</li>
+            <li>monitoring plus riche ;</li>
+            <li>gestion plus propre des secrets ;</li>
+            <li>industrialisation du déploiement.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>Scheduler</h3>
+          <p class="small">Surveille les DAGs et décide quand les tâches peuvent partir.</p>
+        </div>
+        <div class="card">
+          <h3>Executor</h3>
+          <p class="small">Correspond à la manière dont les tâches sont effectivement exécutées.</p>
+        </div>
+        <div class="card">
+          <h3>Production</h3>
+          <p class="small">On ne raisonne plus comme sur une démo locale : concurrence, stabilité, logs, monitoring et déploiement deviennent centraux.</p>
+        </div>
+      </div>
+      <div class="quote">Un bon projet Airflow se juge à sa lisibilité, à son découpage et à sa capacité à grandir proprement.</div>
+    </section>
+
+    <section class="slide">
+      <div class="tp-banner">TP 3B — Fin de journée</div>
+      <h2>Structurer un pipeline réutilisable et lisible</h2>
+      <div class="tp-layout">
+        <div class="card">
+          <h3>Objectif</h3>
+          <p class="text">Faire évoluer le pipeline météo vers une version plus propre, plus lisible et plus proche d’un début de projet maintenable.</p>
+          <h3 style="margin-top:8px;">Travail demandé</h3>
+          <ul class="checklist">
+            <li><span class="n">1</span><span>Nommer proprement les tâches.</span></li>
+            <li><span class="n">2</span><span>Structurer le DAG de manière plus claire.</span></li>
+            <li><span class="n">3</span><span>Ajouter des logs ou une table d’alertes.</span></li>
+            <li><span class="n">4</span><span>Ajouter une branche conditionnelle.</span></li>
+            <li><span class="n">5</span><span>Produire un schéma logique du pipeline.</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Consignes</h3>
+          <ul class="bullet-list">
+            <li>conserver le sujet Open-Meteo ;</li>
+            <li>garder une séparation claire entre récupération, transformation, validation, chargement et alerte ;</li>
+            <li>faire apparaître explicitement le chemin nominal et le chemin d’alerte ;</li>
+            <li>éviter le hardcode inutile ;</li>
+            <li>privilégier la lisibilité du projet.</li>
+          </ul>
+          <h3 style="margin-top:8px;">Livrables attendus</h3>
+          <ul class="bullet-list good-list">
+            <li>DAG structuré ;</li>
+            <li>schéma logique du pipeline ;</li>
+            <li>explication des améliorations apportées ;</li>
+            <li>preuve d’exécution ;</li>
+            <li>exemple d’alerte, de branchement ou de sortie qualité.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Synthèse</div>
+      <h2>Ce qu’il faut retenir avant le projet intégrateur</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Fiabilité et qualité</h3>
+          <ul class="bullet-list">
+            <li><span class="mono">retry</span>, <span class="mono">retry delay</span> et <span class="mono">timeout</span> gèrent surtout les incidents temporaires ;</li>
+            <li>un rerun impose de penser l’idempotence ;</li>
+            <li>un pipeline peut réussir techniquement et échouer fonctionnellement ;</li>
+            <li>complétude, unicité, cohérence, fraîcheur et présence des champs sont des contrôles classiques ;</li>
+            <li>un run ne doit pas être accepté sans validation explicite de la donnée.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Exploitation et structuration</h3>
+          <ul class="bullet-list good-list">
+            <li>l’UI Airflow, les logs et l’historique des runs font partie du monitoring ;</li>
+            <li>un workflow peut suivre plusieurs chemins selon une règle ;</li>
+            <li>il faut distinguer chemin nominal, chemin d’alerte et rejet ;</li>
+            <li>un projet maintenable repose sur un DAG lisible et des responsabilités séparées ;</li>
+            <li>un pipeline exploitable est un pipeline observable, réutilisable et cohérent dans le temps.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="quote">Le mercredi, on passe d’un pipeline qui fonctionne à un pipeline qu’on peut exploiter avec confiance.</div>
+    </section>
+
+  </main>
+</body>
+</html>

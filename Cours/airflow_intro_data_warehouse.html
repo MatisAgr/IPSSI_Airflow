@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airflow — Introduction détaillée Data Warehouse</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0d1b2a;
+      --panel: #10243b;
+      --panel-2: #132b45;
+      --text: #f5f7fb;
+      --muted: #b8c7db;
+      --blue: #4da3ff;
+      --cyan: #62d0ff;
+      --green: #5ee4a8;
+      --orange: #ffb55e;
+      --red: #ff7b7b;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body { counter-reset: slide; }
+    .deck { width: 100%; }
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      padding: 64px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(98,208,255,.10), transparent 30%),
+        radial-gradient(circle at top left, rgba(77,163,255,.10), transparent 28%),
+        linear-gradient(180deg, #091321 0%, #07111f 100%);
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .slide::after {
+      counter-increment: slide;
+      content: counter(slide, decimal-leading-zero);
+      position: absolute;
+      right: 28px;
+      bottom: 20px;
+      font-size: 14px;
+      letter-spacing: .18em;
+      color: rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p, ul { margin: 0; }
+    h1 {
+      font-size: 58px;
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      max-width: 980px;
+    }
+    h2 {
+      font-size: 42px;
+      line-height: 1.08;
+      letter-spacing: -.025em;
+      max-width: 1080px;
+    }
+    h3 {
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .lead {
+      font-size: 25px;
+      line-height: 1.38;
+      color: var(--muted);
+      max-width: 1040px;
+    }
+    .text {
+      font-size: 22px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .small {
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .grid-2, .grid-3, .grid-4 {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bullet-list li {
+      position: relative;
+      padding-left: 22px;
+      font-size: 21px;
+      line-height: 1.42;
+      color: var(--muted);
+    }
+    .bullet-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 0 4px rgba(98,208,255,.12);
+    }
+    .good-list li::before { background: var(--green); box-shadow: 0 0 0 4px rgba(94,228,168,.12); }
+    .danger-list li::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255,123,123,.12); }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 28px;
+      align-items: center;
+      flex: 1;
+    }
+    .kicker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .accent { color: var(--cyan); }
+    .quote {
+      padding: 22px 24px;
+      border-left: 4px solid var(--cyan);
+      background: rgba(98,208,255,.08);
+      border-radius: 16px;
+      font-size: 24px;
+      line-height: 1.38;
+      color: var(--text);
+      max-width: 1080px;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .metric {
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+    }
+    .metric .value {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .metric .label {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
+    .timeline .step {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 146px;
+    }
+    .step .num {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: .14em;
+      margin-bottom: 12px;
+    }
+    .step h3 { font-size: 22px; margin-bottom: 10px; }
+    .diagram {
+      padding: 24px;
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .tp-banner {
+      display: inline-flex;
+      align-self: flex-start;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(94,228,168,.12);
+      border: 1px solid rgba(94,228,168,.35);
+      color: var(--green);
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: 15px;
+    }
+    .tp-layout {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .checklist li {
+      font-size: 20px;
+      color: var(--muted);
+      line-height: 1.4;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .checklist li .n {
+      flex: 0 0 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(98,208,255,.15);
+      border: 1px solid rgba(98,208,255,.35);
+      color: var(--cyan);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      margin-top: 2px;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95em;
+      color: var(--text);
+    }
+
+    .wide { max-width: 1180px; }
+    .table { width:100%; border-collapse: collapse; overflow:hidden; border-radius:18px; border:1px solid var(--border); }
+    .table th, .table td { padding:14px 16px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; color:var(--muted); font-size:18px; line-height:1.35; }
+    .table th { color:var(--text); background:rgba(255,255,255,.06); font-size:17px; }
+    .table tr:last-child td { border-bottom:none; }
+    .codebox { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:17px; line-height:1.45; color:#f5f7fb; background:rgba(0,0,0,.22); border:1px solid var(--border); border-radius:18px; padding:20px; white-space:pre-wrap; }
+    .flow { display:flex; align-items:stretch; gap:12px; width:100%; }
+    .flow .box { flex:1; padding:18px; border-radius:18px; background:rgba(255,255,255,.05); border:1px solid var(--border); }
+    .flow .arrow { display:flex; align-items:center; color:var(--cyan); font-size:30px; font-weight:800; }
+    .mini-title { font-size:20px; color:var(--text); font-weight:800; margin-bottom:8px; }
+    .warning { border-left:4px solid var(--orange); background:rgba(255,181,94,.08); }
+    .success { border-left:4px solid var(--green); background:rgba(94,228,168,.08); }
+    .danger { border-left:4px solid var(--red); background:rgba(255,123,123,.08); }
+    .two-lines { display:flex; flex-direction:column; gap:16px; }
+    .compact li { font-size:19px; }
+
+    @media print {
+      @page { size: A4 landscape; margin: 0; }
+      html, body { background: #07111f; }
+      .slide {
+        min-height: 100vh;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+<section class="slide">
+  <div class="eyebrow">Master 2 — Apache Airflow</div>
+  <div class="hero">
+    <div style="display:flex;flex-direction:column;gap:24px;">
+      <h1>Introduction aux <span class="accent">Data Warehouses</span> pour concevoir de meilleurs pipelines Airflow</h1>
+      <p class="lead">Base métier et technique avant les DAGs : BI, OLTP/OLAP, ETL/ELT, bronze/silver/gold, qualité, traçabilité, idempotence, couche analytique et automatisation.</p>
+      <div class="kicker-row">
+        <span class="pill">Data Warehouse</span><span class="pill">Data Lake</span><span class="pill">Lakehouse</span><span class="pill">Analytics</span><span class="pill">Airflow</span>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="slide">
+      <div class="eyebrow">Objectif pédagogique</div>
+      <h2>Pourquoi ce module avant Airflow ?</h2>
+      <div class="grid-2"><div class="card"><h3>Problème fréquent</h3><ul class="bullet-list danger-list"><li>Les étudiants savent lancer un DAG, mais ne savent pas toujours pourquoi la donnée doit être découpée en couches.</li><li>Ils confondent souvent ingestion, transformation, stockage, analytique et visualisation.</li><li>Ils produisent des pipelines qui “marchent”, mais qui ne sont ni auditables, ni rejouables, ni utiles au métier.</li></ul></div><div class="card"><h3>But de l’introduction</h3><ul class="bullet-list good-list"><li>Donner le vocabulaire décisionnel de base.</li><li>Expliquer la logique d’un Data Warehouse et d’un Lakehouse simple.</li><li>Relier chaque notion à une bonne pratique Airflow.</li><li>Préparer les TP : API → bronze → silver → gold → analytics → dashboard ou alerte.</li></ul></div></div><div class="quote">Airflow ne donne pas de sens à la donnée. Il orchestre une chaîne qui doit déjà avoir une logique métier, technique et analytique.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Vue d’ensemble</div>
+      <h2>La chaîne de valeur data complète</h2>
+      <div class="flow"><div class="box"><div class="mini-title">Source</div><p class="small">API, base métier, fichier, log</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Ingestion</div><p class="small">Collecter et tracer</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Transformation</div><p class="small">Nettoyer, typer, enrichir</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Stockage</div><p class="small">Organiser par couches</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Analytique</div><p class="small">Calculer KPI et vues</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Action</div><p class="small">Dashboard, rapport, alerte, export</p></div></div><div class="quote">Un pipeline de qualité transforme progressivement une donnée source en information exploitable puis en action métier.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">BI</div>
+      <h2>Business Intelligence : définition utile</h2>
+      <div class="grid-2"><div class="card"><h3>Ce que c’est</h3><ul class="bullet-list"><li>Ensemble de méthodes, modèles et outils pour transformer des données en informations utiles au pilotage.</li><li>Elle sert à suivre des indicateurs, analyser des tendances, comparer des performances et détecter des anomalies.</li><li>Elle n’est pas seulement un outil de visualisation.</li></ul></div><div class="card"><h3>Ce que ça produit</h3><ul class="bullet-list"><li>KPI : mesure clé orientée décision.</li><li>Dashboard : interface synthétique de pilotage.</li><li>Rapport : analyse plus détaillée, souvent périodique.</li><li>Table analytique : structure préparée pour répondre vite à des questions métier.</li></ul></div></div><div class="quote">La BI ne commence pas dans Power BI ou Metabase. Elle commence dans la façon dont les données sont préparées.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Métier</div>
+      <h2>Donnée opérationnelle vs donnée analytique</h2>
+      <table class="table"><tr><th>Aspect</th><th>Donnée opérationnelle</th><th>Donnée analytique</th></tr>
+<tr><td>Finalité</td><td>Faire tourner l’activité</td><td>Comprendre, piloter, décider</td></tr>
+<tr><td>Exemples</td><td>Commande, paiement, inscription, stock courant</td><td>CA mensuel, taux de retour, marge par catégorie, évolution N-1</td></tr>
+<tr><td>Utilisateurs</td><td>Applications, clients, équipes terrain</td><td>Analystes, managers, métiers, direction</td></tr>
+<tr><td>Risque si mélangé</td><td>Requêtes lourdes sur systèmes de production</td><td>KPI instables, chiffres contradictoires, faible confiance</td></tr></table><div class="quote">Un pipeline analytique ne doit pas simplement recopier l’opérationnel. Il doit produire une donnée adaptée à la décision.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">OLTP / OLAP</div>
+      <h2>Deux mondes à ne pas confondre</h2>
+      <div class="grid-2"><div class="card"><h3>OLTP — transactionnel</h3><ul class="bullet-list"><li>Beaucoup de petites opérations.</li><li>INSERT, UPDATE, DELETE, SELECT simples.</li><li>Temps réel ou quasi temps réel.</li><li>Optimisé pour l’exécution correcte d’actions métier.</li><li>Exemple : enregistrer une commande.</li></ul></div><div class="card"><h3>OLAP — analytique</h3><ul class="bullet-list"><li>Lecture de volumes plus importants.</li><li>Agrégations, comparaisons, historique, segmentation.</li><li>Optimisé pour la compréhension et le pilotage.</li><li>Exemple : CA mensuel par canal et région.</li></ul></div></div><div class="quote">Airflow sert souvent à alimenter l’OLAP à partir de sources OLTP ou externes, sans perturber les systèmes opérationnels.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Data Warehouse</div>
+      <h2>Définition opérationnelle</h2>
+      <div class="grid-2"><div class="card"><h3>Définition</h3><p class="text">Un Data Warehouse est un entrepôt de données conçu pour le décisionnel. Il centralise, nettoie, historise et structure les données pour les rendre exploitables par SQL, KPI, dashboards et rapports.</p></div><div class="card"><h3>Caractéristiques</h3><ul class="bullet-list"><li>orienté analyse ;</li><li>intégré depuis plusieurs sources ;</li><li>historisé ;</li><li>nettoyé et structuré ;</li><li>optimisé pour la lecture ;</li><li>gouverné par des règles partagées.</li></ul></div></div><div class="quote">Le Data Warehouse est une logique d’organisation avant d’être un outil. PostgreSQL, BigQuery, Snowflake ou Redshift peuvent porter cette logique à des échelles différentes.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Erreur classique</div>
+      <h2>Un Data Warehouse n’est pas une base de production copiée</h2>
+      <div class="grid-2"><div class="card"><h3>Copie naïve</h3><ul class="bullet-list danger-list"><li>Tables proches des applications sources.</li><li>Noms de colonnes techniques ou incohérents.</li><li>Pas d’historique fiable.</li><li>Doublons ou valeurs manquantes non gérées.</li><li>Logique métier recalculée dans chaque dashboard.</li></ul></div><div class="card"><h3>Vraie logique DW</h3><ul class="bullet-list good-list"><li>Tables pensées pour la lecture analytique.</li><li>Historisation et traçabilité.</li><li>Définitions partagées des KPI.</li><li>Couches intermédiaires contrôlées.</li><li>Calculs centralisés et testables.</li></ul></div></div><div class="quote">Copier une source dans PostgreSQL ne suffit pas à créer un Data Warehouse.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Data Mart</div>
+      <h2>Couche métier ciblée</h2>
+      <div class="grid-2"><div class="card"><h3>Définition</h3><p class="text">Un Data Mart est un sous-ensemble orienté domaine, métier ou cas d’usage : ventes, finance, conformité, marketing, qualité catalogue.</p></div><div class="card"><h3>Pourquoi c’est utile</h3><ul class="bullet-list"><li>Réduire la complexité exposée au métier.</li><li>Accélérer les requêtes fréquentes.</li><li>Stabiliser les KPI d’un domaine.</li><li>Donner une interface claire aux outils BI ou automatisations.</li></ul></div></div><div class="quote">Dans un cours Airflow, une table gold ou analytics peut être vue comme un mini Data Mart alimenté par DAG.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Faits / Dimensions</div>
+      <h2>Modélisation multidimensionnelle simplifiée</h2>
+      <div class="grid-2"><div class="card"><h3>Table de faits</h3><ul class="bullet-list"><li>Contient ce qu’on mesure.</li><li>Exemples : quantité, montant, nombre de réservations, score, statut calculé.</li><li>Porte souvent les clés vers les dimensions.</li><li>Peut être volumineuse et historisée.</li></ul></div><div class="card"><h3>Dimensions</h3><ul class="bullet-list"><li>Donnent les axes d’analyse.</li><li>Exemples : date, produit, client, magasin, canal, catégorie.</li><li>Permettent de filtrer, regrouper et comparer.</li><li>Doivent être lisibles par les utilisateurs métier.</li></ul></div></div><div class="codebox">fait_ventes(date_id, produit_id, magasin_id, canal_id, quantite, montant)
+dim_date(date_id, jour, mois, trimestre, annee)
+dim_produit(produit_id, nom, categorie, marque)</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Exemple métier</div>
+      <h2>Marketplace e-commerce : sources et usages</h2>
+      <div class="grid-3"><div class="card"><h3>Sources</h3><ul class="bullet-list compact"><li>commandes clients ;</li><li>catalogue produits ;</li><li>fichiers CSV partenaires ;</li><li>images produit ;</li><li>logs de navigation ;</li><li>avis texte ;</li><li>API transporteur.</li></ul></div><div class="card"><h3>Questions métier</h3><ul class="bullet-list compact"><li>Quels vendeurs performent ?</li><li>Quelles fiches produit sont incomplètes ?</li><li>Quel canal convertit le mieux ?</li><li>Quels produits génèrent le plus de retours ?</li><li>Où faut-il déclencher une alerte ?</li></ul></div><div class="card"><h3>Restitutions</h3><ul class="bullet-list compact"><li>dashboard commercial ;</li><li>rapport qualité catalogue ;</li><li>alerte produits sans image ;</li><li>export anomalies ;</li><li>table analytique pour data science.</li></ul></div></div><div class="quote">Un bon pipeline part de questions métier concrètes, pas d’une envie de brancher des outils.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">KPI</div>
+      <h2>Construire un indicateur utile</h2>
+      <div class="grid-2"><div class="card"><h3>Un bon KPI doit être</h3><ul class="bullet-list good-list"><li>lié à un objectif métier ;</li><li>mesurable sans ambiguïté ;</li><li>suivi dans le temps ;</li><li>compréhensible par le métier ;</li><li>actionnable si le seuil se dégrade.</li></ul></div><div class="card"><h3>Exemples qualité catalogue</h3><ul class="bullet-list"><li>taux de produits avec image ;</li><li>taux de fiches complètes ;</li><li>nombre de produits sans marque ;</li><li>score moyen de complétude ;</li><li>top catégories les plus dégradées ;</li><li>nombre d’objets sans métadonnées.</li></ul></div></div><div class="quote">Un chiffre n’est pas automatiquement un KPI. Il devient KPI s’il aide à décider ou prioriser.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Dashboard / Rapport</div>
+      <h2>Choisir la bonne restitution</h2>
+      <table class="table"><tr><th>Objet</th><th>Rôle</th><th>Exemple</th><th>Piège</th></tr>
+<tr><td>KPI</td><td>Mesure clé</td><td>Taux de complétude = 82%</td><td>Multiplier des chiffres sans décision associée</td></tr>
+<tr><td>Dashboard</td><td>Vue synthétique de pilotage</td><td>Qualité catalogue par catégorie</td><td>Faire une collection de graphiques sans lecture globale</td></tr>
+<tr><td>Rapport</td><td>Analyse détaillée et commentée</td><td>Rapport hebdomadaire des anomalies</td><td>Sortir une liste brute sans interprétation</td></tr></table><div class="quote">Un dashboard doit permettre de comprendre vite ce qui va bien, ce qui se dégrade et où agir.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Pipeline</div>
+      <h2>Définition dans une logique Data Warehouse</h2>
+      <div class="grid-2"><div class="card"><h3>Pipeline de données</h3><p class="text">Chaîne d’opérations qui fait passer une donnée d’une source vers des étapes de traitement, puis vers un stockage et des usages analytiques.</p></div><div class="card"><h3>Étapes typiques</h3><ul class="bullet-list"><li>collecte ;</li><li>contrôle ;</li><li>nettoyage ;</li><li>transformation ;</li><li>chargement ;</li><li>préparation à l’analyse ;</li><li>restitution ou action.</li></ul></div></div><div class="quote">Dans Airflow, chaque tâche doit avoir une responsabilité claire dans cette chaîne.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">ETL / ELT</div>
+      <h2>Deux façons d’organiser les transformations</h2>
+      <table class="table"><tr><th>Approche</th><th>Principe</th><th>Avantage</th><th>Limite</th></tr>
+<tr><td>ETL</td><td>Extract → Transform → Load</td><td>La cible reçoit une donnée déjà préparée</td><td>Plus rigide si les besoins changent souvent</td></tr>
+<tr><td>ELT</td><td>Extract → Load → Transform</td><td>On conserve plus facilement le brut et on transforme dans la plateforme cible</td><td>Demande une gouvernance stricte pour éviter le désordre</td></tr></table><div class="quote">Dans un cours Airflow, l’important n’est pas de défendre ETL ou ELT, mais de justifier où et pourquoi on transforme.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">API</div>
+      <h2>Une API n’est pas une table analytique</h2>
+      <div class="grid-2"><div class="card"><h3>Ce que donne l’API</h3><ul class="bullet-list"><li>JSON imbriqué ;</li><li>champs parfois absents ;</li><li>pagination ;</li><li>formats de date variables ;</li><li>quotas ;</li><li>noms techniques ;</li><li>structure pensée pour le service source.</li></ul></div><div class="card"><h3>Ce que veut l’analytique</h3><ul class="bullet-list"><li>colonnes typées ;</li><li>noms métier explicites ;</li><li>historique ;</li><li>clés de jointure ;</li><li>indicateurs calculables ;</li><li>qualité mesurable ;</li><li>traçabilité du run.</li></ul></div></div><div class="quote">Le travail du pipeline est de faire passer une matière première API vers une structure fiable.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">JSON</div>
+      <h2>Lire un schéma implicite</h2>
+      <div class="grid-3"><div class="card"><h3>Identifier</h3><ul class="bullet-list compact"><li>clés stables ;</li><li>objets imbriqués ;</li><li>tableaux ;</li><li>types attendus ;</li><li>champs optionnels.</li></ul></div><div class="card"><h3>Sélectionner</h3><ul class="bullet-list compact"><li>champs métier utiles ;</li><li>identifiants ;</li><li>timestamps ;</li><li>liens vers fichiers ;</li><li>valeurs nécessaires aux KPI.</li></ul></div><div class="card"><h3>Transformer</h3><ul class="bullet-list compact"><li>flattening ;</li><li>conversion de type ;</li><li>normalisation ;</li><li>gestion des nulls ;</li><li>création de booléens.</li></ul></div></div><div class="quote">On ne garde pas tout “au cas où” dans la table métier. On peut garder le brut ailleurs, puis structurer ce qui sert vraiment.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Data Lake</div>
+      <h2>Pourquoi une base relationnelle ne suffit pas toujours</h2>
+      <div class="grid-2"><div class="card"><h3>La base relationnelle gère bien</h3><ul class="bullet-list good-list"><li>tables structurées ;</li><li>jointures ;</li><li>agrégations ;</li><li>vues SQL ;</li><li>requêtes analytiques classiques.</li></ul></div><div class="card"><h3>Elle gère moins naturellement</h3><ul class="bullet-list danger-list"><li>images ;</li><li>PDF ;</li><li>archives brutes ;</li><li>gros JSON variés ;</li><li>logs massifs ;</li><li>exports partenaires ;</li><li>objets binaires.</li></ul></div></div><div class="quote">Une architecture moderne sépare souvent stockage brut/fichier et couche structurée analytique.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Stockage objet</div>
+      <h2>S3, Azure Blob, GCS, MinIO</h2>
+      <div class="grid-2"><div class="card"><h3>Principe</h3><p class="text">Le stockage objet conserve des fichiers sous forme bucket + object key. Il est très adapté aux Data Lakes car il accepte des formats variés et une organisation logique par zones.</p></div><div class="card"><h3>Ce qu’on stocke</h3><ul class="bullet-list"><li>payload JSON brut ;</li><li>CSV source ;</li><li>images ;</li><li>rapports générés ;</li><li>exports d’anomalies ;</li><li>fichiers de contrôle ;</li><li>archives de run.</li></ul></div></div><div class="quote">Dans le cours, MinIO peut simuler localement une logique S3 sans dépendance cloud.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Métadonnées</div>
+      <h2>Un fichier sans description devient vite inutilisable</h2>
+      <div class="grid-2"><div class="card"><h3>Métadonnées minimales</h3><ul class="bullet-list"><li>nom du fichier ;</li><li>bucket ;</li><li>object_key ;</li><li>source ;</li><li>type MIME ;</li><li>taille ;</li><li>checksum ;</li><li>date d’ingestion ;</li><li>run_id ;</li><li>statut de traitement.</li></ul></div><div class="card"><h3>Pourquoi c’est critique</h3><ul class="bullet-list"><li>retrouver un objet ;</li><li>relier fichier et entité métier ;</li><li>auditer une ingestion ;</li><li>rejouer un traitement ;</li><li>détecter les doublons ;</li><li>prouver ce qui a été traité.</li></ul></div></div><div class="codebox">pokemon_files(file_id, pokemon_id, bucket_name, object_key, file_type, checksum, created_at, run_id)</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Lakehouse</div>
+      <h2>Concilier lake et warehouse</h2>
+      <div class="grid-2"><div class="card"><h3>Data Lake</h3><ul class="bullet-list"><li>conservation large ;</li><li>formats variés ;</li><li>brut gardé plus longtemps ;</li><li>souplesse pour usages futurs.</li></ul></div><div class="card"><h3>Data Warehouse</h3><ul class="bullet-list"><li>donnée structurée ;</li><li>qualité et cohérence ;</li><li>KPI et reporting ;</li><li>tables pensées pour la lecture.</li></ul></div></div><div class="quote">Le Lakehouse cherche à garder la souplesse du Lake tout en construisant des couches fiables pour l’analyse.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Zones</div>
+      <h2>Bronze, Silver, Gold : logique générale</h2>
+      <table class="table"><tr><th>Zone</th><th>Rôle</th><th>Contenu typique</th><th>Airflow doit garantir</th></tr>
+<tr><td>Bronze</td><td>Conserver le brut</td><td>JSON API, fichiers source, tables raw</td><td>traçabilité, non-perte, horodatage, run_id</td></tr>
+<tr><td>Silver</td><td>Nettoyer et standardiser</td><td>données typées, dédupliquées, contrôlées</td><td>qualité, schéma, règles de transformation</td></tr>
+<tr><td>Gold</td><td>Servir le métier</td><td>KPI, agrégats, datamarts, vues analytiques</td><td>cohérence métier, idempotence, disponibilité</td></tr></table><div class="quote">Les noms peuvent varier : raw/staging/curated/analytics. La logique reste la maturité progressive de la donnée.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Bronze</div>
+      <h2>Zone brute : garder la preuve source</h2>
+      <div class="grid-2"><div class="card"><h3>Objectif</h3><ul class="bullet-list"><li>conserver la donnée proche de ce qui a été reçu ;</li><li>permettre audit, debug et rejeu ;</li><li>éviter de perdre une information avant de savoir si elle sera utile ;</li><li>séparer collecte et interprétation.</li></ul></div><div class="card"><h3>Bonnes pratiques Airflow</h3><ul class="bullet-list"><li>écrire un run_id ;</li><li>horodater la collecte ;</li><li>conserver la source et les paramètres ;</li><li>ne pas écraser sans stratégie ;</li><li>journaliser volumes et erreurs ;</li><li>rendre le dépôt idempotent.</li></ul></div></div><div class="codebox">bronze/api_name/dt=2026-06-09/run_id=scheduled__2026-06-09T06:00:00/payload.json</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Silver</div>
+      <h2>Zone préparée : nettoyer sans encore faire du reporting</h2>
+      <div class="grid-2"><div class="card"><h3>Transformations typiques</h3><ul class="bullet-list"><li>typage des colonnes ;</li><li>normalisation des dates ;</li><li>déduplication ;</li><li>flattening JSON ;</li><li>suppression ou marquage des lignes invalides ;</li><li>standardisation des catégories ;</li><li>ajout de clés techniques.</li></ul></div><div class="card"><h3>Contrôles attendus</h3><ul class="bullet-list"><li>schéma conforme ;</li><li>taux de nulls acceptable ;</li><li>unicité des clés ;</li><li>formats cohérents ;</li><li>volumes cohérents avec bronze ;</li><li>rejets tracés dans une table dédiée.</li></ul></div></div><div class="quote">Silver n’est pas encore la couche métier finale. C’est une zone fiable de travail.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Gold</div>
+      <h2>Zone métier : exposer une donnée directement exploitable</h2>
+      <div class="grid-2"><div class="card"><h3>Ce qu’on y trouve</h3><ul class="bullet-list"><li>tables de faits ;</li><li>dimensions ;</li><li>agrégats ;</li><li>vues analytiques ;</li><li>scores métier ;</li><li>tables prêtes pour dashboard ou automatisation.</li></ul></div><div class="card"><h3>Exigences</h3><ul class="bullet-list"><li>noms compréhensibles ;</li><li>définitions KPI stables ;</li><li>historique maîtrisé ;</li><li>requêtes rapides ;</li><li>droits d’accès adaptés ;</li><li>pas de logique cachée dans l’outil BI.</li></ul></div></div><div class="quote">Gold est la zone où la donnée commence vraiment à parler au métier.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Analytics</div>
+      <h2>Couche analytique : pourquoi ne pas lire les tables brutes</h2>
+      <div class="grid-2"><div class="card"><h3>Tables brutes</h3><ul class="bullet-list danger-list"><li>trop détaillées ;</li><li>trop proches de la source ;</li><li>peu lisibles ;</li><li>noms techniques ;</li><li>risque de recalculs divergents.</li></ul></div><div class="card"><h3>Vues analytiques</h3><ul class="bullet-list good-list"><li>simplifient la lecture ;</li><li>centralisent la logique de calcul ;</li><li>préparent dashboards et rapports ;</li><li>cohérence des indicateurs ;</li><li>réutilisables par Metabase, n8n ou Airflow.</li></ul></div></div><div class="quote">La qualité d’un dashboard dépend d’abord de la qualité de la couche analytique qu’il interroge.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Exemple SQL</div>
+      <h2>Vue analytique qualité catalogue</h2>
+      <div class="codebox">CREATE OR REPLACE VIEW analytics.product_quality_metrics AS
+SELECT
+  p.product_id,
+  p.product_name,
+  p.category,
+  (p.image_url IS NOT NULL) AS has_image,
+  (p.brand IS NOT NULL) AS has_brand,
+  (f.file_id IS NOT NULL) AS has_file,
+  (
+    CASE WHEN p.product_name IS NOT NULL THEN 1 ELSE 0 END +
+    CASE WHEN p.category IS NOT NULL THEN 1 ELSE 0 END +
+    CASE WHEN p.image_url IS NOT NULL THEN 1 ELSE 0 END +
+    CASE WHEN p.brand IS NOT NULL THEN 1 ELSE 0 END +
+    CASE WHEN f.file_id IS NOT NULL THEN 1 ELSE 0 END
+  ) / 5.0 AS completeness_score
+FROM silver.products p
+LEFT JOIN silver.product_files f ON f.product_id = p.product_id;</div><div class="quote">Cette vue transforme des colonnes techniques en lecture métier : une fiche est-elle exploitable ou non ?</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Qualité data</div>
+      <h2>Les contrôles minimaux d’un pipeline sérieux</h2>
+      <div class="grid-3"><div class="card"><h3>Complétude</h3><ul class="bullet-list compact"><li>champs obligatoires présents ;</li><li>taux de nulls ;</li><li>fichiers attendus présents.</li></ul></div><div class="card"><h3>Validité</h3><ul class="bullet-list compact"><li>types corrects ;</li><li>formats de dates ;</li><li>valeurs dans une plage attendue ;</li><li>référentiels connus.</li></ul></div><div class="card"><h3>Cohérence</h3><ul class="bullet-list compact"><li>clés uniques ;</li><li>jointures possibles ;</li><li>volumes attendus ;</li><li>pas de rupture brut → préparé.</li></ul></div></div><div class="quote">La qualité data doit être testée dans le pipeline, pas découverte par hasard dans le dashboard.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Tables techniques</div>
+      <h2>Tracer les exécutions</h2>
+      <div class="grid-2"><div class="card"><h3>ingestion_runs</h3><div class="codebox">run_id
+source
+started_at
+ended_at
+status
+records_received
+records_inserted
+records_rejected
+error_message</div></div><div class="card"><h3>Pourquoi</h3><ul class="bullet-list"><li>savoir ce qui a tourné ;</li><li>savoir combien de lignes ont été reçues ;</li><li>identifier les erreurs ;</li><li>relier données et exécution Airflow ;</li><li>documenter les backfills ;</li><li>alimenter des alertes.</li></ul></div></div><div class="quote">Sans table de run, on a un script qui tourne. Avec table de run, on commence à avoir un pipeline observable.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Idempotence</div>
+      <h2>La qualité clé pour Airflow</h2>
+      <div class="grid-2"><div class="card"><h3>Définition simple</h3><p class="text">Relancer le même traitement sur le même intervalle ne doit pas créer de doublons, incohérences ou effets secondaires non maîtrisés.</p></div><div class="card"><h3>Exemples de pratiques</h3><ul class="bullet-list"><li>clé naturelle ou clé technique stable ;</li><li>upsert plutôt qu’insert aveugle ;</li><li>partition par date ou run ;</li><li>suppression/rechargement contrôlé d’une partition ;</li><li>checksum pour fichiers ;</li><li>contrôle d’unicité après chargement.</li></ul></div></div><div class="quote">Dans Airflow, le rejeu n’est pas un cas exceptionnel : c’est une fonctionnalité normale. Le pipeline doit être conçu pour ça.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Backfill</div>
+      <h2>Rejouer le passé sans casser le présent</h2>
+      <div class="grid-2"><div class="card"><h3>Pourquoi backfiller ?</h3><ul class="bullet-list"><li>corriger une transformation ;</li><li>charger une période manquante ;</li><li>changement de règle métier ;</li><li>migration de source ;</li><li>reconstruction d’un Data Mart.</li></ul></div><div class="card"><h3>Risques</h3><ul class="bullet-list danger-list"><li>doublons ;</li><li>écrasement de données valides ;</li><li>mélange de versions de règles ;</li><li>coût trop élevé ;</li><li>déclenchement d’alertes obsolètes.</li></ul></div></div><div class="quote">Un bon DAG distingue la période traitée, la date d’exécution et la version de logique appliquée.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Partitions</div>
+      <h2>Penser en périodes de données</h2>
+      <div class="grid-2"><div class="card"><h3>Pourquoi partitionner</h3><ul class="bullet-list"><li>isoler les chargements par jour/mois ;</li><li>faciliter le rejeu ;</li><li>réduire les volumes relus ;</li><li>simplifier les contrôles ;</li><li>accélérer certaines requêtes.</li></ul></div><div class="card"><h3>Dans Airflow</h3><ul class="bullet-list"><li>utiliser data_interval_start / data_interval_end ;</li><li>éviter “today” non maîtrisé ;</li><li>passer la période aux requêtes ;</li><li>nommer les fichiers avec la période ;</li><li>contrôler les volumes par partition.</li></ul></div></div><div class="codebox">WHERE business_date >= {{ data_interval_start }}
+  AND business_date <  {{ data_interval_end }}</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Schémas SQL</div>
+      <h2>Organisation pédagogique recommandée</h2>
+      <table class="table"><tr><th>Schéma</th><th>Rôle</th><th>Exemples</th></tr>
+<tr><td>technical</td><td>Traçabilité et logs</td><td>ingestion_runs, file_ingestion_log, data_quality_results</td></tr>
+<tr><td>bronze</td><td>Donnée brute ou quasi brute</td><td>raw_api_payloads, raw_partner_files</td></tr>
+<tr><td>silver</td><td>Donnée nettoyée et standardisée</td><td>products, product_files, customers_clean</td></tr>
+<tr><td>gold</td><td>Donnée métier prête à consommer</td><td>fact_sales, dim_product, product_quality_daily</td></tr>
+<tr><td>analytics</td><td>Vues et KPI exposés</td><td>product_quality_metrics, category_stats</td></tr></table><div class="quote">Même dans PostgreSQL local, organiser les schémas apprend une vraie discipline d’architecture.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Nommage</div>
+      <h2>Conventions simples pour éviter le chaos</h2>
+      <div class="grid-2"><div class="card"><h3>Tables</h3><ul class="bullet-list"><li>bronze.raw_pokeapi_payloads ;</li><li>silver.pokemon ;</li><li>silver.pokemon_files ;</li><li>gold.pokemon_quality_daily ;</li><li>analytics.v_pokemon_quality_metrics.</li></ul></div><div class="card"><h3>Tâches Airflow</h3><ul class="bullet-list"><li>extract_api_payload ;</li><li>store_raw_payload ;</li><li>transform_to_silver ;</li><li>run_quality_checks ;</li><li>load_gold_metrics ;</li><li>refresh_analytics_views ;</li><li>notify_if_quality_bad.</li></ul></div></div><div class="quote">Le nommage est une documentation minimale. Dans l’UI Airflow, il doit permettre de comprendre le DAG sans ouvrir le code.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">DAG Airflow</div>
+      <h2>Mapping des couches vers des tâches</h2>
+      <div class="flow"><div class="box"><div class="mini-title">extract</div><p class="small">Appeler API ou lire source</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">bronze</div><p class="small">Stocker brut + run</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">silver</div><p class="small">Nettoyer, typer, dédupliquer</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">quality</div><p class="small">Tester et tracer</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">gold</div><p class="small">Charger les tables métier</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">notify</div><p class="small">Alerter ou publier</p></div></div><div class="quote">Chaque tâche doit représenter une étape compréhensible du cycle de vie de la donnée.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Airflow</div>
+      <h2>Ce qu’il orchestre et ce qu’il ne doit pas cacher</h2>
+      <div class="grid-2"><div class="card"><h3>Airflow orchestre</h3><ul class="bullet-list good-list"><li>planification ;</li><li>dépendances ;</li><li>rejeu ;</li><li>monitoring des runs ;</li><li>retries ;</li><li>paramètres ;</li><li>connexion aux systèmes.</li></ul></div><div class="card"><h3>Airflow ne remplace pas</h3><ul class="bullet-list danger-list"><li>la modélisation analytique ;</li><li>la qualité SQL ;</li><li>les conventions de données ;</li><li>les définitions métier ;</li><li>la gouvernance des accès ;</li><li>la réflexion sur les KPI.</li></ul></div></div><div class="quote">Un DAG propre ne compense pas une mauvaise architecture de données.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Dépendances</div>
+      <h2>Ne pas tout mettre dans une seule tâche</h2>
+      <div class="grid-2"><div class="card"><h3>Mauvaise approche</h3><ul class="bullet-list danger-list"><li>une tâche Python fait tout ;</li><li>debug difficile ;</li><li>pas de reprise intermédiaire ;</li><li>logs illisibles ;</li><li>rejeu coûteux ;</li><li>responsabilités mélangées.</li></ul></div><div class="card"><h3>Bonne approche</h3><ul class="bullet-list good-list"><li>tâches cohérentes et séparées ;</li><li>contrôles entre étapes ;</li><li>données intermédiaires traçables ;</li><li>possibilité de relancer uniquement une partie ;</li><li>lecture claire dans l’UI.</li></ul></div></div><div class="quote">Découper un DAG, ce n’est pas faire joli : c’est rendre le pipeline opérable.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Retries</div>
+      <h2>Attention aux effets secondaires</h2>
+      <div class="grid-2"><div class="card"><h3>Retry utile</h3><ul class="bullet-list"><li>appel API temporairement indisponible ;</li><li>timeout réseau ;</li><li>verrou transitoire ;</li><li>erreur technique non déterministe.</li></ul></div><div class="card"><h3>Retry dangereux si</h3><ul class="bullet-list danger-list"><li>insert non idempotent ;</li><li>fichier écrasé sans contrôle ;</li><li>email envoyé deux fois ;</li><li>alerte dupliquée ;</li><li>table partiellement chargée.</li></ul></div></div><div class="quote">Avant d’activer les retries, il faut savoir ce qui se passe si la tâche est exécutée deux fois.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Secrets et config</div>
+      <h2>Séparer code, paramètres et credentials</h2>
+      <div class="grid-2"><div class="card"><h3>À éviter</h3><ul class="bullet-list danger-list"><li>URL écrite partout ;</li><li>ville ou catégorie hardcodée ;</li><li>mot de passe dans le DAG ;</li><li>seuil métier figé dans le code ;</li><li>noms de tables dupliqués.</li></ul></div><div class="card"><h3>À viser</h3><ul class="bullet-list good-list"><li>Airflow Connections pour les accès ;</li><li>Variables ou fichiers de config pour paramètres ;</li><li>seuils documentés ;</li><li>noms centralisés ;</li><li>DAG réutilisable pour plusieurs périmètres.</li></ul></div></div><div class="quote">Le code décrit la logique. La configuration adapte cette logique au contexte.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Monitoring</div>
+      <h2>Observer le pipeline et pas seulement le statut vert</h2>
+      <div class="grid-2"><div class="card"><h3>Statut technique</h3><ul class="bullet-list"><li>DAG success/failed ;</li><li>durée des tâches ;</li><li>retries ;</li><li>logs ;</li><li>SLA éventuels.</li></ul></div><div class="card"><h3>Statut data</h3><ul class="bullet-list"><li>nombre de lignes reçues ;</li><li>nombre de lignes rejetées ;</li><li>taux de complétude ;</li><li>écart vs run précédent ;</li><li>données manquantes ;</li><li>fraîcheur de la source.</li></ul></div></div><div class="quote">Un DAG vert peut produire de mauvaises données. Le monitoring data est aussi important que le monitoring technique.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Freshness</div>
+      <h2>Fraîcheur et disponibilité des données</h2>
+      <div class="grid-2"><div class="card"><h3>Questions à poser</h3><ul class="bullet-list"><li>La source était-elle à jour ?</li><li>A-t-on reçu la période attendue ?</li><li>Le volume est-il normal ?</li><li>Les données sont-elles arrivées à temps pour le reporting ?</li></ul></div><div class="card"><h3>Implémentation simple</h3><ul class="bullet-list"><li>table de contrôle par source ;</li><li>max(source_updated_at) ;</li><li>comparaison avec data_interval ;</li><li>alerte si retard ;</li><li>KPI de fraîcheur dans analytics.</li></ul></div></div><div class="codebox">SELECT MAX(source_last_updated_at) AS last_source_update
+FROM silver.products;</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Sécurité</div>
+      <h2>Droits et exposition des données</h2>
+      <div class="grid-2"><div class="card"><h3>Principe</h3><p class="text">Tout le monde n’a pas besoin de lire toutes les couches. Le métier doit souvent consommer gold/analytics, pas bronze ni technical.</p></div><div class="card"><h3>Règles simples</h3><ul class="bullet-list"><li>limiter l’accès aux credentials ;</li><li>ne pas exposer le brut sensible ;</li><li>séparer lecture BI et écriture pipeline ;</li><li>tracer les exports ;</li><li>éviter les données personnelles inutiles dans les logs.</li></ul></div></div><div class="quote">La gouvernance commence dès le TP : qui lit quoi, qui écrit quoi, et pourquoi ?</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Visualisation</div>
+      <h2>Metabase, Power BI, Superset : leur vraie place</h2>
+      <div class="grid-2"><div class="card"><h3>L’outil BI lit</h3><ul class="bullet-list"><li>tables gold ;</li><li>vues analytics ;</li><li>agrégats ;</li><li>datasets préparés ;</li><li>requêtes SQL maîtrisées.</li></ul></div><div class="card"><h3>L’outil BI ne doit pas devenir</h3><ul class="bullet-list danger-list"><li>le lieu principal de nettoyage ;</li><li>un amas de calculs non documentés ;</li><li>une source de définitions KPI divergentes ;</li><li>un contournement de la couche analytique.</li></ul></div></div><div class="quote">La visualisation expose une logique analytique. Elle ne doit pas remplacer la modélisation.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Automatisation</div>
+      <h2>De l’indicateur à l’action</h2>
+      <div class="grid-2"><div class="card"><h3>Exemple KPI</h3><p class="text">Taux de produits incomplets = 34%</p><div class="codebox">incomplete_rate > 0.30</div></div><div class="card"><h3>Actions possibles</h3><ul class="bullet-list"><li>insérer une alerte en base ;</li><li>envoyer un message Slack/Teams/Telegram ;</li><li>générer un CSV d’anomalies ;</li><li>déposer un rapport dans MinIO ;</li><li>déclencher un workflow secondaire.</li></ul></div></div><div class="quote">Automatiser, c’est traduire une règle métier en action exécutable, visible et traçable.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Cas Pokémon</div>
+      <h2>Architecture pédagogique complète</h2>
+      <div class="flow"><div class="box"><div class="mini-title">PokéAPI</div><p class="small">Source JSON</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Bronze</div><p class="small">Payload brut MinIO/Postgres</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Silver</div><p class="small">pokemon, pokemon_files</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Gold</div><p class="small">scores qualité</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Analytics</div><p class="small">vues KPI</p></div><div class="arrow">→</div><div class="box"><div class="mini-title">Action</div><p class="small">Metabase / Telegram</p></div></div><div class="quote">Ce cas relie toutes les notions : API, JSON, fichiers, métadonnées, qualité, analytics et automatisation.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Cas météo</div>
+      <h2>Architecture Airflow possible</h2>
+      <div class="grid-2"><div class="card"><h3>Source</h3><ul class="bullet-list"><li>Open-Meteo ;</li><li>plusieurs villes ;</li><li>période quotidienne ou horaire ;</li><li>paramètres météo sélectionnés.</li></ul></div><div class="card"><h3>Tables cibles</h3><ul class="bullet-list"><li>technical.ingestion_runs ;</li><li>bronze.raw_weather_payloads ;</li><li>silver.weather_observations ;</li><li>gold.weather_daily_city ;</li><li>analytics.v_weather_kpi.</li></ul></div></div><div class="quote">Le sujet météo est utile pour faire comprendre la notion de période traitée dans Airflow.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Exemple météo</div>
+      <h2>Tables minimales</h2>
+      <div class="codebox">technical.ingestion_runs(
+  run_id, source, data_interval_start, data_interval_end,
+  started_at, ended_at, status, records_received, records_inserted
+)
+
+bronze.raw_weather_payloads(
+  run_id, city, latitude, longitude, payload_json, ingested_at
+)
+
+silver.weather_observations(
+  city, observed_at, temperature, wind_speed, precipitation, run_id
+)
+
+gold.weather_daily_city(
+  city, observation_date, avg_temperature, max_wind_speed, total_precipitation
+)</div><div class="quote">Même avec un petit TP, on peut imposer une vraie structure analytique.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Qualité météo</div>
+      <h2>Contrôles simples à demander aux étudiants</h2>
+      <div class="grid-2"><div class="card"><h3>Contrôles techniques</h3><ul class="bullet-list"><li>le DAG écrit un run ;</li><li>chaque ville attendue est présente ;</li><li>le nombre d’observations correspond à la période ;</li><li>aucune tâche ne dépend d’un chemin local fragile.</li></ul></div><div class="card"><h3>Contrôles data</h3><ul class="bullet-list"><li>température non nulle ;</li><li>timestamp dans l’intervalle traité ;</li><li>pas de doublon ville + timestamp ;</li><li>valeurs météo dans des bornes plausibles ;</li><li>agrégat gold cohérent avec silver.</li></ul></div></div><div class="quote">Les contrôles doivent être simples mais obligatoires : ils forcent les étudiants à penser qualité.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">TP guidé</div>
+      <h2>Exercice 1 — Classer les données par couche</h2>
+      <div class="grid-2"><div class="card"><h3>Énoncé</h3><ul class="bullet-list"><li>On dispose d’un payload API brut, d’une image produit, d’une table produit nettoyée, d’un score de complétude, d’un dashboard qualité, d’un fichier CSV partenaire.</li><li>Classer chaque élément en bronze, silver, gold ou analytics, puis justifier.</li></ul></div><div class="card"><h3>Attendu</h3><ul class="bullet-list"><li>Bronze : payload, CSV brut, image.</li><li>Silver : table produit nettoyée, métadonnées fichier.</li><li>Gold : score de complétude consolidé.</li><li>Analytics : vue KPI ou dashboard.</li></ul></div></div><div class="quote">Objectif : vérifier qu’ils comprennent le niveau de maturité de la donnée.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">TP guidé</div>
+      <h2>Exercice 2 — Dessiner un DAG data warehouse</h2>
+      <div class="grid-2"><div class="card"><h3>Contraintes</h3><ul class="bullet-list"><li>source API ;</li><li>conservation du brut ;</li><li>transformation silver ;</li><li>contrôles qualité ;</li><li>chargement gold ;</li><li>alerte si KPI dégradé ;</li><li>table ingestion_runs obligatoire.</li></ul></div><div class="card"><h3>Critères de correction</h3><ul class="bullet-list"><li>découpage clair des tâches ;</li><li>dépendances cohérentes ;</li><li>rejeu possible ;</li><li>traçabilité ;</li><li>séparation source / métier / analytics ;</li><li>pas de tâche “do_everything”.</li></ul></div></div><div class="quote">Cet exercice prépare directement la conception des DAGs Airflow.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Checklist</div>
+      <h2>Ce qu’un pipeline Airflow analytique doit garantir</h2>
+      <div class="grid-2"><div class="card"><h3>Technique</h3><ul class="bullet-list good-list"><li>tâches séparées ;</li><li>connexions propres ;</li><li>logs exploitables ;</li><li>retries maîtrisés ;</li><li>paramètres non hardcodés ;</li><li>période de données explicite ;</li><li>rejeu possible.</li></ul></div><div class="card"><h3>Data</h3><ul class="bullet-list good-list"><li>brut conservé si nécessaire ;</li><li>schéma cible clair ;</li><li>qualité contrôlée ;</li><li>métadonnées stockées ;</li><li>KPI centralisés ;</li><li>couche analytique lisible ;</li><li>alertes actionnables.</li></ul></div></div><div class="quote">Un pipeline de qualité est à la fois opérable par la technique et compréhensible par le métier.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Erreurs fréquentes</div>
+      <h2>Ce que tu dois corriger explicitement en cours</h2>
+      <div class="grid-2"><div class="card"><h3>Erreurs de conception</h3><ul class="bullet-list danger-list"><li>confondre raw et analytics ;</li><li>charger directement un JSON API dans une table métier ;</li><li>ne pas historiser ;</li><li>ne pas tracer les runs ;</li><li>créer des KPI dans chaque dashboard ;</li><li>stocker des fichiers sans métadonnées.</li></ul></div><div class="card"><h3>Erreurs Airflow</h3><ul class="bullet-list danger-list"><li>utiliser datetime.now() pour la période traitée ;</li><li>insert aveugle non idempotent ;</li><li>tâche unique trop grosse ;</li><li>credentials dans le code ;</li><li>retry qui duplique les effets ;</li><li>aucun contrôle après chargement.</li></ul></div></div><div class="quote">Ces erreurs sont plus importantes à corriger que des détails de syntaxe Airflow.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Mini évaluation</div>
+      <h2>Questions rapides de compréhension</h2>
+      <div class="grid-2"><div class="card"><h3>Questions</h3><ul class="bullet-list"><li>Pourquoi une API ne fournit-elle pas directement une donnée analytique ?</li><li>Quelle différence entre bronze et silver ?</li><li>Pourquoi une table ingestion_runs est-elle utile ?</li><li>Pourquoi lire les tables brutes dans Metabase est une mauvaise idée ?</li><li>Que signifie idempotence dans un DAG ?</li></ul></div><div class="card"><h3>Réponses attendues</h3><ul class="bullet-list"><li>source ≠ modèle métier ;</li><li>bronze conserve, silver prépare ;</li><li>tracer, auditer, rejouer ;</li><li>calculs instables et peu lisibles ;</li><li>relancer sans doublonner ni corrompre.</li></ul></div></div><div class="quote">Ces questions peuvent servir de note de compréhension de cours.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Synthèse</div>
+      <h2>Le modèle mental à retenir</h2>
+      <div class="grid-3"><div class="card"><h3>Métier</h3><ul class="bullet-list compact"><li>questions ;</li><li>KPI ;</li><li>décisions ;</li><li>actions.</li></ul></div><div class="card"><h3>Données</h3><ul class="bullet-list compact"><li>sources ;</li><li>brut ;</li><li>préparé ;</li><li>analytique ;</li><li>qualité.</li></ul></div><div class="card"><h3>Airflow</h3><ul class="bullet-list compact"><li>orchestration ;</li><li>périodes ;</li><li>dépendances ;</li><li>rejeu ;</li><li>monitoring.</li></ul></div></div><div class="quote">Airflow est pertinent quand il orchestre une chaîne de données pensée pour produire une information fiable, historisée, traçable et actionnable.</div>
+    </section>
+<section class="slide">
+      <div class="eyebrow">Transition</div>
+      <h2>Vers la suite du cours Airflow</h2>
+      <div class="grid-2"><div class="card"><h3>Ce que les étudiants doivent maintenant savoir</h3><ul class="bullet-list"><li>décrire les couches d’une architecture analytique ;</li><li>justifier ce qui va en bronze, silver, gold ;</li><li>expliquer le rôle de la qualité et de la traçabilité ;</li><li>comprendre pourquoi un DAG doit être idempotent.</li></ul></div><div class="card"><h3>Ce qu’ils vont construire ensuite</h3><ul class="bullet-list"><li>DAG planifié ;</li><li>appel API ;</li><li>stockage brut ;</li><li>transformation ;</li><li>chargement PostgreSQL ;</li><li>contrôles ;</li><li>vues analytiques ;</li><li>alerte ou restitution.</li></ul></div></div><div class="quote">La suite logique : passer de l’architecture cible au DAG Airflow qui l’alimente proprement.</div>
+    </section>
+  </main>
+</body>
+</html>
