@@ -4,5 +4,4 @@
 .vscode
 logs
 __pycache__
-data/raw/*
-!data/raw/.gitkeep
+data
