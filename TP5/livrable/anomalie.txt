@@ -1,0 +1,43 @@
+### Cas ANOMALIE QUALITE - chargement bloque + anomalie tracee
+(Variable weather_force_anomaly=true -> temp_c=999 injectee sur la 1ere ville)
+
+## 1. Etats des taches (anomaly_demo) : load_measurements/record_success SKIPPED, trace_anomaly SUCCESS
+dag_id                      | execution_date            | task_id                | state   | start_date                       | end_date                         | map_index
+============================+===========================+========================+=========+==================================+==================================+==========
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | list_cities            | success | 2026-06-10T09:20:33.538302+00:00 | 2026-06-10T09:20:33.746904+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | log_run_start          | success | 2026-06-10T09:20:32.404578+00:00 | 2026-06-10T09:20:32.533333+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | extract_city           | success | 2026-06-10T09:20:34.909988+00:00 | 2026-06-10T09:20:35.216791+00:00 | 1        
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | ensure_schema          | success | 2026-06-10T09:20:33.539021+00:00 | 2026-06-10T09:20:33.737373+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | transform_measurements | success | 2026-06-10T09:20:36.035432+00:00 | 2026-06-10T09:20:36.193950+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | archive_raw            | success | 2026-06-10T09:20:36.035388+00:00 | 2026-06-10T09:20:36.203172+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | extract_city           | success | 2026-06-10T09:20:34.909987+00:00 | 2026-06-10T09:20:35.218470+00:00 | 0        
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | extract_city           | success | 2026-06-10T09:20:34.910474+00:00 | 2026-06-10T09:20:35.230117+00:00 | 2        
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | end                    | success | 2026-06-10T09:20:39.974116+00:00 | 2026-06-10T09:20:39.974120+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | load_measurements      | skipped | 2026-06-10T09:20:38.490262+00:00 | 2026-06-10T09:20:38.490262+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | branch_on_quality      | success | 2026-06-10T09:20:38.305400+00:00 | 2026-06-10T09:20:38.515244+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | check_quality          | success | 2026-06-10T09:20:37.288562+00:00 | 2026-06-10T09:20:37.508190+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | record_success         | skipped | 2026-06-10T09:20:38.572303+00:00 | 2026-06-10T09:20:38.572303+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | trace_anomaly          | success | 2026-06-10T09:20:39.201170+00:00 | 2026-06-10T09:20:39.405074+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T09:20:31+00:00 | trace_failure          | skipped | 2026-06-10T09:20:39.475629+00:00 | 2026-06-10T09:20:39.475629+00:00 |          
+                                                                                                                                                                            
+
+## 2. Journal d'ingestion : run anomaly_demo en statut 'anomaly', 0 ligne chargee
+                run_id                | status  | rows_received | rows_inserted |                   error                   
+--------------------------------------+---------+---------------+---------------+-------------------------------------------
+ scheduled__2026-06-09T00:00:00+00:00 | success |             3 |             3 | 
+ nominal_demo                         | success |             3 |             3 | 
+ anomaly_demo                         | anomaly |             3 |             0 | 1 anomalie(s) qualité - chargement bloqué
+(3 rows)
+
+## 3. Detail des anomalies qualite tracees (quality_issues)
+    run_id    | city  | field  | value |    rule     
+--------------+-------+--------+-------+-------------
+ anomaly_demo | Paris | temp_c | 999.0 | -50.0..60.0
+(1 row)
+
+## 4. Table cible inchangee : aucune ligne avec run_id='anomaly_demo'
+    run_id    | count 
+--------------+-------
+ nominal_demo |     3
+(1 row)
+

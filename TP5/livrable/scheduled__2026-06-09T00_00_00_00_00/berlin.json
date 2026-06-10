@@ -1,0 +1,24 @@
+{
+  "latitude": 52.52,
+  "longitude": 13.419998,
+  "generationtime_ms": 0.10311603546142578,
+  "utc_offset_seconds": 7200,
+  "timezone": "Europe/Berlin",
+  "timezone_abbreviation": "GMT+2",
+  "elevation": 46.0,
+  "current_units": {
+    "time": "iso8601",
+    "interval": "seconds",
+    "temperature_2m": "°C",
+    "relative_humidity_2m": "%",
+    "wind_speed_10m": "km/h"
+  },
+  "current": {
+    "time": "2026-06-10T12:45",
+    "interval": 900,
+    "temperature_2m": 18.0,
+    "relative_humidity_2m": 44,
+    "wind_speed_10m": 2.8
+  },
+  "_city": "Berlin"
+}

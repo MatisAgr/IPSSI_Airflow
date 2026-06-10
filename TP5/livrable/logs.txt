@@ -1,0 +1,25 @@
+# LOGS APPLICATIFS Airflow (extraits filtres sur les modules weather.*)
+Note : Airflow masque la chaine 'weather' en '***' dans les logs (c'est l'identifiant
+de la connexion BDD) ; '***_measurements' = weather_measurements. Sans impact fonctionnel.
+
+=== RUN NOMINAL (nominal_demo) : extract -> archive -> transform -> qualite -> branch -> load -> trace ===
+[2026-06-10T08:55:10.628+0000] {weather_pipeline_dag.py:58} INFO - villes à traiter : ['Paris', 'Berlin', 'Madrid']
+[2026-06-10T08:55:11.538+0000] {extract.py:31} INFO - fetch_city[Paris] -> HTTP 200
+[2026-06-10T08:55:11.546+0000] {extract.py:31} INFO - fetch_city[Berlin] -> HTTP 200
+[2026-06-10T08:55:11.539+0000] {extract.py:31} INFO - fetch_city[Madrid] -> HTTP 200
+[2026-06-10T08:55:12.639+0000] {extract.py:44} INFO - archive_raw[Paris] -> /opt/airflow/data/raw/nominal_demo/paris.json
+[2026-06-10T08:55:12.645+0000] {extract.py:44} INFO - archive_raw[Berlin] -> /opt/airflow/data/raw/nominal_demo/berlin.json
+[2026-06-10T08:55:12.652+0000] {extract.py:44} INFO - archive_raw[Madrid] -> /opt/airflow/data/raw/nominal_demo/madrid.json
+[2026-06-10T08:55:12.638+0000] {transform.py:37} INFO - transform : 3 lignes structurées
+[2026-06-10T08:55:13.631+0000] {quality.py:22} INFO - quality : 3 mesures valides
+[2026-06-10T08:55:14.754+0000] {weather_pipeline_dag.py:85} INFO - branch_on_quality : valid=True -> load_measurements
+[2026-06-10T08:55:15.920+0000] {load.py:33} INFO - load : 3 mesures chargées dans ***_measurements
+[2026-06-10T08:55:16.516+0000] {tracing.py:55} INFO - ingestion_log : run nominal_demo -> success
+
+=== RUN ANOMALIE (anomaly_demo) : injection -> detection -> branchement -> tracage ===
+[2026-06-10T09:20:36.176+0000] {transform.py:32} WARNING - transform : anomalie qualité injectée (weather_force_anomaly=true) sur Paris
+[2026-06-10T09:20:36.177+0000] {transform.py:37} INFO - transform : 3 lignes structurées
+[2026-06-10T09:20:37.473+0000] {quality.py:20} WARNING - quality : 1 anomalie(s) sur 3 mesures
+[2026-06-10T09:20:38.477+0000] {weather_pipeline_dag.py:85} INFO - branch_on_quality : valid=False -> trace_anomaly
+[2026-06-10T09:20:39.369+0000] {tracing.py:80} INFO - quality_issues : 1 ligne(s) tracée(s) pour run anomaly_demo
+[2026-06-10T09:20:39.385+0000] {tracing.py:55} INFO - ingestion_log : run anomaly_demo -> anomaly

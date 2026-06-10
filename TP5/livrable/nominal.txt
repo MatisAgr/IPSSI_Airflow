@@ -1,0 +1,60 @@
+# Cas NOMINAL d'execution reussie
+
+## 1. Conteneurs
+tp5-airflow-scheduler-1	Up 32 minutes (healthy)
+tp5-airflow-webserver-1	Up 32 minutes (healthy)
+tp5-postgres-1	Up 33 minutes (healthy)
+tp5-weather-db-1	Up 33 minutes (healthy)
+
+## 2. Connexion Airflow utilisee
+id    conn_id     conn_type    description    host        schema    login    password      port  is_encrypted    is_extra_encrypted    extra_dejson    get_uri
+      weather_db  postgres                    weather-db  weather   weather  weather       5432  False           False                 {}              postgres://weather:weather@weather-db:5432/weather
+
+## 3. Variables Airflow
+key                  
+=====================
+weather_cities       
+weather_force_anomaly
+                     
+
+## 4. Etats des taches du run (nominal_demo) - branchement vers load
+dag_id                      | execution_date            | task_id                | state   | start_date                       | end_date                         | map_index
+============================+===========================+========================+=========+==================================+==================================+==========
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | log_run_start          | success | 2026-06-10T08:55:09.317952+00:00 | 2026-06-10T08:55:09.432271+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | list_cities            | success | 2026-06-10T08:55:10.490614+00:00 | 2026-06-10T08:55:10.648610+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | ensure_schema          | success | 2026-06-10T08:55:10.490606+00:00 | 2026-06-10T08:55:10.636662+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | extract_city           | success | 2026-06-10T08:55:11.269816+00:00 | 2026-06-10T08:55:11.576657+00:00 | 0        
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | archive_raw            | success | 2026-06-10T08:55:12.407945+00:00 | 2026-06-10T08:55:12.669406+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | check_quality          | success | 2026-06-10T08:55:13.489622+00:00 | 2026-06-10T08:55:13.651831+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | trace_anomaly          | skipped | 2026-06-10T08:55:14.763768+00:00 | 2026-06-10T08:55:14.763768+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | branch_on_quality      | success | 2026-06-10T08:55:14.603525+00:00 | 2026-06-10T08:55:14.790494+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | load_measurements      | success | 2026-06-10T08:55:15.778885+00:00 | 2026-06-10T08:55:15.940431+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | trace_failure          | skipped | 2026-06-10T08:55:16.591463+00:00 | 2026-06-10T08:55:16.591463+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | record_success         | success | 2026-06-10T08:55:16.320761+00:00 | 2026-06-10T08:55:16.525586+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | end                    | success | 2026-06-10T08:55:17.207097+00:00 | 2026-06-10T08:55:17.207099+00:00 |          
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | extract_city           | success | 2026-06-10T08:55:11.269841+00:00 | 2026-06-10T08:55:11.579521+00:00 | 2        
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | extract_city           | success | 2026-06-10T08:55:11.270219+00:00 | 2026-06-10T08:55:11.585615+00:00 | 1        
+weather_open_meteo_pipeline | 2026-06-10T08:55:08+00:00 | transform_measurements | success | 2026-06-10T08:55:12.406963+00:00 | 2026-06-10T08:55:12.660907+00:00 |          
+                                                                                                                                                                            
+
+## 5. Table cible weather_measurements
+  city  |     measured_at     | temp_c | humidity_pct | wind_kmh |    run_id    
+--------+---------------------+--------+--------------+----------+--------------
+ Berlin | 2026-06-10 10:45:00 |     18 |           48 |      3.4 | nominal_demo
+ Madrid | 2026-06-10 10:45:00 |   21.6 |           41 |     10.2 | nominal_demo
+ Paris  | 2026-06-10 10:45:00 |   15.6 |           56 |     11.9 | nominal_demo
+(3 rows)
+
+## 6. Journal d'ingestion ingestion_log
+                run_id                |   source   | status  | rows_received | rows_inserted | error 
+--------------------------------------+------------+---------+---------------+---------------+-------
+ scheduled__2026-06-09T00:00:00+00:00 | open-meteo | success |             3 |             3 | 
+ nominal_demo                         | open-meteo | success |             3 |             3 | 
+(2 rows)
+
+## 7. Table d'anomalies quality_issues (vide en nominal)
+ anomalies 
+-----------
+         0
+(1 row)
+

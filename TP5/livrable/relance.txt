@@ -1,0 +1,41 @@
+# Cas RELANCE idempotence (pas de doublon)
+
+## A. Relance complete du run 'relance_demo' (clear de tout le run, re-execution)
+Le run a ete rejoue integralement. La cle d'unicite (city, measured_at) empeche tout doublon.
+
+## B. Relance partielle : re-execution de load_measurements seul (meme donnees transformees)
+Compteurs AVANT relance partielle :  total=9  relance_demo=6  doublons=0  lignes_journal(relance_demo)=1
+Compteurs APRES relance partielle :  total=9  relance_demo=6  doublons=0  lignes_journal(relance_demo)=1
+=> Recharger les memes mesures n'ajoute aucune ligne (UPSERT ON CONFLICT) : idempotence prouvee.
+
+## C. Aucun couple (city, measured_at) en double dans la table cible
+ city | measured_at | n 
+------+-------------+---
+(0 rows)
+
+(0 ligne => aucun doublon)
+
+## D. Journal d'ingestion : un run = une seule ligne (run_id unique, upsert), meme apres relance
+                run_id                | status  | rows_inserted 
+--------------------------------------+---------+---------------
+ scheduled__2026-06-09T00:00:00+00:00 | success |             3
+ nominal_demo                         | success |             3
+ anomaly_demo                         | anomaly |             0
+ relance_demo                         | success |             3
+(4 rows)
+
+
+## E. Contenu integral de la table cible (1 ligne par city/measured_at)
+  city  |     measured_at     | temp_c |    run_id    
+--------+---------------------+--------+--------------
+ Berlin | 2026-06-10 10:45:00 |     18 | nominal_demo
+ Madrid | 2026-06-10 10:45:00 |   21.6 | nominal_demo
+ Paris  | 2026-06-10 10:45:00 |   15.6 | nominal_demo
+ Berlin | 2026-06-10 11:15:00 |   18.7 | relance_demo
+ Madrid | 2026-06-10 11:15:00 |   22.6 | relance_demo
+ Paris  | 2026-06-10 11:15:00 |   15.8 | relance_demo
+ Berlin | 2026-06-10 11:30:00 |   19.1 | relance_demo
+ Madrid | 2026-06-10 11:30:00 |     23 | relance_demo
+ Paris  | 2026-06-10 11:30:00 |   15.8 | relance_demo
+(9 rows)
+
